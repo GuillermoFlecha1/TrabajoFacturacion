@@ -1,0 +1,10 @@
+.ddev/.global_commands/*
+.ddev/docker-compose.*
+.ddev/homeadditions
+.ddev/import-db
+.ddev/import-files
+.ddev/.db_snapshots
+.ddev/*.log
+web/sites/default/settings.local.php
+web/sites/default/files/
+web/sites/simpletest/
