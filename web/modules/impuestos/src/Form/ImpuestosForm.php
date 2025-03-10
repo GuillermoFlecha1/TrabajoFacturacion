@@ -11,41 +11,58 @@ use Drupal\Core\Form\FormStateInterface;
 class ImpuestosForm extends ContentEntityForm {
 
   /**
-   * {@inheritdoc}
+   * Construcción del formulario.
    */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
-    // Ejecuta la validación básica definida en la clase padre.
-    parent::validateForm($form, $form_state);
+  public function buildForm(array $form, FormStateInterface $form_state) {
+    // Llamamos al método de la clase base para construir el formulario.
+    $form = parent::buildForm($form, $form_state);
 
-    // Validación del campo "nombre".
-    $nombre = $form_state->getValue('nombre');
-    if (empty($nombre)) {
-      $form_state->setErrorByName('nombre', $this->t('El campo Nombre es obligatorio.'));
+    // Añadimos la validación personalizada para el campo 'valor'.
+    if (isset($form['valor'])) {
+      $form['valor']['#element_validate'][] = [$this, 'validateValor'];
     }
 
-    // Validación del campo "valor" (porcentaje del IVA).
+    return $form;
+  }
+
+  /**
+   * Validación personalizada del campo 'valor' (porcentaje del IVA).
+   */
+  public function validateValor($element, FormStateInterface $form_state, $form) {
     $valor = $form_state->getValue('valor');
 
-    // Asegurémonos de que el valor sea tratado como un número entero.
-    $valor = (int) $valor; // Convierte el valor a entero.
-
-    // Verificar si el valor es un número entero y está dentro del rango válido.
-    if (!is_numeric($valor) || $valor != (int)$valor) {
-      $form_state->setErrorByName('valor', $this->t('El campo Valor debe ser un número entero.'));
+    // Si el valor viene como un arreglo indexado, extraer el primer valor.
+    if (is_array($valor)) {
+      if (isset($valor[0]['value'])) {
+        $valor = $valor[0]['value'];
+      }
+      elseif (isset($valor['value'])) {
+        $valor = $valor['value'];
+      }
     }
-    elseif ($valor < 0 || $valor > 100) {
-      $form_state->setErrorByName('valor', $this->t('El campo Valor debe estar entre 0 y 100.'));
+
+    // Convertir a número (float) para que se pueda comparar.
+    $valor_numeric = floatval($valor);
+
+    // Registrar para depuración (opcional).
+    \Drupal::logger('impuestos')->notice('Validando valor: @valor (numeric: @numeric)', [
+      '@valor' => $valor,
+      '@numeric' => $valor_numeric,
+    ]);
+
+    // Verificar que el valor esté en el rango de 0 a 100.
+    if ($valor_numeric < 0 || $valor_numeric > 100) {
+      $form_state->setError($element, t('El campo Valor debe estar entre 0 y 100.'));
     }
   }
 
   /**
-   * {@inheritdoc}
+   * Guardado del formulario.
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    // Llama al método submit del padre para guardar la entidad.
     parent::submitForm($form, $form_state);
 
-    // Mensaje de confirmación.
+    // Mensaje de confirmación al guardar la entidad.
     \Drupal::messenger()->addMessage($this->t('La entidad Impuestos ha sido guardada.'));
   }
 }
