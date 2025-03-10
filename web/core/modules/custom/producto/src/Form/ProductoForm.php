@@ -33,18 +33,48 @@ class ProductoForm extends ContentEntityForm {
    * Validación del campo precio.
    */
   public function validatePrecio($element, FormStateInterface $form_state, $form) {
-    $precio = floatval($form_state->getValue('precio'));
-    if ($precio <= 0) {
-      $form_state->setError($element, t('El precio debe ser un número mayor a 0.'));
+    $precio = $form_state->getValue('precio');
+
+    // Si el precio viene como un array indexado, extraer el primer precio.
+    if (is_array($precio)) {
+      if (isset($precio[0]['value'])) {
+        $precio = $precio[0]['value'];
+      }
+      elseif (isset($precio['value'])) {
+        $precio = $precio['value'];
+      }
+    }
+
+    // Convertir a número (float) para que se pueda comparar.
+    $precio_numeric = floatval($precio);
+
+    // Verificar que el precio sea mayor que 0.
+    if ($precio_numeric < 1) {
+      $form_state->setError($element, t('El precio debe ser mayor que 0'));
     }
   }
   /**
    * Validación del campo cantidad.
    */
   public function validateCantidad($element, FormStateInterface $form_state, $form) {
-    $cantidad = intval($form_state->getValue('cantidad'));
-    if ($cantidad <= 0) {
-      $form_state->setError($element, t('La cantidad debe ser un número mayor a 0.'));
+    $cantidad = $form_state->getValue('cantidad');
+
+    // Si la cantidad viene como un array indexado, extraer el primer precio.
+    if (is_array($cantidad)) {
+      if (isset($cantidad[0]['value'])) {
+        $cantidad = $cantidad[0]['value'];
+      }
+      elseif (isset($cantidad['value'])) {
+        $cantidad = $cantidad['value'];
+      }
+    }
+
+    // Convertir a número (float) para que se pueda comparar.
+    $cantidad_numeric = intval($cantidad);
+
+    // Verificar que la cantidad sea mayor que 0.
+    if ($cantidad_numeric < 1) {
+      $form_state->setError($element, t('La cantidad debe ser mayor que 0'));
     }
   }
   
