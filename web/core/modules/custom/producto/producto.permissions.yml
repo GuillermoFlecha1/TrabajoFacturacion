@@ -1,0 +1,4 @@
+administer producto entities:
+  title: 'Administrar entidades de producto'
+  description: 'Permite gestionar entidades de producto.'
+  restrict access: false

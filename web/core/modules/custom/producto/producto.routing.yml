@@ -1,0 +1,39 @@
+producto.add-form:
+  path: '/producto/add'
+  defaults:
+    _entity_form: 'producto.add'  # Debe coincidir con el namespace de tu clase
+    _title: 'Agregar Producto'
+  requirements:
+    _permission: 'administer producto entities'
+
+producto.edit-form:
+  path: '/producto/{producto}/edit'
+  defaults:
+    _entity_form: 'producto.edit'  # Asegúrate de que ProductoForm esté en este namespace
+    _title: 'Editar Producto'
+  requirements:
+    _permission: 'administer producto entities'
+  options:
+    parameters:
+      producto:
+        type: 'entity:producto'
+
+entity.producto.canonical:
+  path: '/producto/{producto}'
+  defaults:
+    _entity_view: 'producto.full' 
+    _title: 'Productos'
+  requirements:
+    _permission: 'administer producto entities'
+
+producto.delete-form:
+  path: '/producto/{producto}/delete'
+  defaults:
+    _entity_form: 'producto.delete'  # Verifica que esta clase exista
+    _title: 'Eliminar Producto'
+  requirements:
+    _permission: 'administer producto entities'
+  options:
+    parameters:
+      producto:
+        type: 'entity:producto'
