@@ -1,0 +1,5 @@
+name: 'Custom User Form'
+type: module
+description: 'Proporciona un formulario personalizado para crear nuevos usuarios.'
+core_version_requirement: ^11
+package: Custom

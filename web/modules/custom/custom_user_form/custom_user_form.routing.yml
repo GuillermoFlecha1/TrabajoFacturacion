@@ -1,0 +1,7 @@
+custom_user_form.form:
+  path: '/custom-user-form'
+  defaults:
+    _form: '\Drupal\custom_user_form\Form\CustomUserForm'
+    _title: 'Crear nuevo usuario'
+  requirements:
+    _permission: 'administer users'
