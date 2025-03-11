@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\impuestos\Entity;
+namespace Drupal\impuestos;
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityListBuilder;
@@ -35,7 +35,7 @@ class ImpuestosListBuilder extends EntityListBuilder {
 
     // Aquí definimos cómo se muestran las filas.
     $row['id'] = $entity->id();
-    $row['nombre'] = $entity->label();
+    $row['nombre'] = $entity->toLink($entity->label());
     $row['valor'] = $entity->get('valor')->value . '%'; // El campo 'valor' con el signo '%'
     
     // Agregar enlaces de acciones

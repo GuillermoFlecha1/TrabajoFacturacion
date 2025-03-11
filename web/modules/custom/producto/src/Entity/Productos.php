@@ -31,10 +31,11 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *     "access" = "Drupal\Core\Entity\EntityAccessControlHandler"
  *   },
  *   links = {
- *     "canonical" = "/producto/{producto}",
- *     "add-form" = "/producto/add",
- *     "edit-form" = "/producto/{producto}/edit",
- *     "delete-form" = "/producto/{producto}/delete",
+ *     "canonical" = "/admin/producto/{producto}",
+ *     "add-form" = "/admin/producto/add",
+ *     "edit-form" = "/admin/producto/{producto}/edit",
+ *     "delete-form" = "/admin/producto/{producto}/delete",
+ *     "collection" = "/admin/producto"
  *   },
  *   field_ui_base_route = "producto.settings"
  * )

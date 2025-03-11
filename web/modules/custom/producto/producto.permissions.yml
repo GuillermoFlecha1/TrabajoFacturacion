@@ -1,4 +1,19 @@
-administer producto entities:
-  title: 'Administrar entidades de producto'
-  description: 'Permite gestionar entidades de producto.'
+producto.add:
+  title: 'Añadir productos'
+  description: 'Permite añadir nuevos productos'
+  restrict access: false
+
+producto.view:
+  title: 'Ver productos'
+  description: 'Permite ver los productos'
+  restrict access: false
+
+producto.update:
+  title: 'Editar productos'
+  description: 'Permite editar productos existentes'
+  restrict access: false
+
+producto.delete:
+  title: 'Eliminar productos'
+  description: 'Permite eliminar productos'
   restrict access: false

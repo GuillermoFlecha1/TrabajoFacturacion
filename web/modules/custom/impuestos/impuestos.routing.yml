@@ -4,7 +4,7 @@ impuestos.add_form:
     _entity_form: 'impuestos.add'
     _title: 'Añadir Impuesto'
   requirements:
-    _permission: 'add impuestos entities'
+    _permission: 'impuestos.add'
 
 impuestos.edit_form:
   path: '/admin/impuestos/{impuestos}/edit'
@@ -28,7 +28,7 @@ entity.impuestos.canonical:
     _entity_view: 'impuestos.full'
     _title: 'Visualizar Impuesto'
   requirements:
-    _permission: 'view impuestos entities'
+    _permission: 'impuestos.view'
 
 entity.impuestos.collection:
   path: '/admin/impuestos'
@@ -36,4 +36,4 @@ entity.impuestos.collection:
     _entity_list: 'impuestos'
     _title: 'Lista de Impuestos'
   requirements:
-    _permission: 'view impuestos entities'
+    _permission: 'impuestos.view'
