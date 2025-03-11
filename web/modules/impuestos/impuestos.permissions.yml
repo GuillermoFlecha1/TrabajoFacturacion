@@ -1,0 +1,19 @@
+impuestos.add:
+  title: 'Añadir impuestos'
+  description: 'Permite añadir nuevos impuestos'
+  restrict access: false
+
+impuestos.view:
+  title: 'Ver impuestos'
+  description: 'Permite ver los impuestos'
+  restrict access: false
+
+impuestos.update:
+  title: 'Editar impuestos'
+  description: 'Permite editar impuestos existentes'
+  restrict access: false
+
+impuestos.delete:
+  title: 'Eliminar impuestos'
+  description: 'Permite eliminar impuestos'
+  restrict access: false
