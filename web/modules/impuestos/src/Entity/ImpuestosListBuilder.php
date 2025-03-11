@@ -39,14 +39,17 @@ class ImpuestosListBuilder extends EntityListBuilder {
     $row['valor'] = $entity->get('valor')->value . '%'; // El campo 'valor' con el signo '%'
     
     // Agregar enlaces de acciones
+    $add_url = \Drupal\Core\Url::fromRoute('impuestos.add_form', ['impuestos' => $entity->id()]);
     $edit_url = \Drupal\Core\Url::fromRoute('impuestos.edit_form', ['impuestos' => $entity->id()]);
     $delete_url = \Drupal\Core\Url::fromRoute('impuestos.delete_form', ['impuestos' => $entity->id()]);
 
     // Definir las acciones de editar y eliminar
     $row['acciones'] = [
       'data' => [
+        Link::fromTextAndUrl($this->t('Añadir'), $add_url)->toRenderable(),
+        ['#markup' => ' | '],
         Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
-        ['#markup' => ' | '], // Agregamos la barra como un elemento renderizable
+        ['#markup' => ' | '],
         Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
       ],
     ];

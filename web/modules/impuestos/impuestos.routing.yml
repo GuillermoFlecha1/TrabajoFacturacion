@@ -1,5 +1,5 @@
 impuestos.add_form:
-  path: '/impuestos/add'
+  path: '/admin/impuestos/add'
   defaults:
     _entity_form: 'impuestos.add'
     _title: 'Añadir Impuesto'
@@ -7,7 +7,7 @@ impuestos.add_form:
     _permission: 'add impuestos entities'
 
 impuestos.edit_form:
-  path: '/impuestos/{impuestos}/edit'
+  path: '/admin/impuestos/{impuestos}/edit'
   defaults:
     _entity_form: 'impuestos.edit'
     _title: 'Editar Impuesto'
@@ -15,7 +15,7 @@ impuestos.edit_form:
     _permission: 'impuestos.update'
 
 impuestos.delete_form:
-  path: '/impuestos/{impuestos}/delete'
+  path: '/admin/impuestos/{impuestos}/delete'
   defaults:
     _entity_form: 'impuestos.delete'
     _title: 'Eliminar Impuesto'
@@ -23,17 +23,17 @@ impuestos.delete_form:
     _permission: 'impuestos.delete'
 
 entity.impuestos.canonical:
-  path: '/impuestos/{impuestos}'
+  path: '/admin/impuestos/{impuestos}'
   defaults:
     _entity_view: 'impuestos.full'
     _title: 'Visualizar Impuesto'
   requirements:
     _permission: 'view impuestos entities'
 
-impuestos.list:
-  path: '/impuestos/list'
+entity.impuestos.collection:
+  path: '/admin/impuestos'
   defaults:
-    _entity_list: impuestos
+    _entity_list: 'impuestos'
     _title: 'Lista de Impuestos'
   requirements:
     _permission: 'view impuestos entities'

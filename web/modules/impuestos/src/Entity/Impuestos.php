@@ -35,6 +35,7 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *     "add-form" = "/impuestos/add",
  *     "edit-form" = "/impuestos/{impuestos}/edit",
  *     "delete-form" = "/impuestos/{impuestos}/delete",
+ *     "collection" = "/admin/structure/impuestos"
  *   },
  *   field_ui_base_route = "impuestos.settings"
  * )
