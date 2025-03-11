@@ -21,7 +21,7 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *   },
  *   handlers = {
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
- *     "list_builder" = "Drupal\impuestos\ImpuestosListBuilder",
+ *     "list_builder" = "Drupal\impuestos\Entity\ImpuestosListBuilder",
  *     "form" = {
  *       "default" = "Drupal\impuestos\Form\ImpuestosForm",
  *       "add" = "Drupal\impuestos\Form\ImpuestosForm",
@@ -39,6 +39,7 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *   field_ui_base_route = "impuestos.settings"
  * )
  */
+
 class Impuestos extends ContentEntityBase {
 
   use EntityChangedTrait;

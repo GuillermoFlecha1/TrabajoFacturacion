@@ -29,3 +29,11 @@ entity.impuestos.canonical:
     _title: 'Visualizar Impuesto'
   requirements:
     _permission: 'view impuestos entities'
+
+impuestos.list:
+  path: '/impuestos/list'
+  defaults:
+    _entity_list: impuestos
+    _title: 'Lista de Impuestos'
+  requirements:
+    _permission: 'view impuestos entities'
