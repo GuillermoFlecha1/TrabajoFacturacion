@@ -26,6 +26,14 @@ entity.producto.canonical:
   requirements:
     _permission: 'administer producto entities'
 
+producto.list:
+  path: '/producto/list'
+  defaults:
+    _title: 'Lista de Productos'
+    _entity_list: producto
+  requirements:
+    _permission: 'administer producto entities'
+
 producto.delete-form:
   path: '/producto/{producto}/delete'
   defaults:
