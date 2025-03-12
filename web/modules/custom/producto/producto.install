@@ -1,0 +1,47 @@
+<?php
+
+function producto_update_11001() {
+    // Verificar si el campo 'impuesto_id' ya está configurado.
+    $entity_type_manager = \Drupal::service('entity_type.manager');
+    $field_storage_config = $entity_type_manager->getStorage('field_storage_config')
+      ->loadByProperties(['field_name' => 'impuesto_id', 'entity_type' => 'producto']);
+  
+    if (empty($field_storage_config)) {
+      // Crear la configuración del almacenamiento del campo.
+      $field_storage = \Drupal\field\Entity\FieldStorageConfig::create([
+        'field_name' => 'impuesto_id',
+        'entity_type' => 'producto',
+        'type' => 'entity_reference',
+        'settings' => [
+          'target_type' => 'impuestos',
+          'handler' => 'default',
+        ],
+        'cardinality' => 1,
+        'translatable' => FALSE,
+      ]);
+      $field_storage->save();
+  
+      // Crear la configuración de la instancia del campo.
+      $field_instance = \Drupal\field\Entity\FieldConfig::create([
+        'field_name' => 'impuesto_id',
+        'entity_type' => 'producto',
+        'bundle' => 'producto',
+        'label' => t('Impuesto'),
+        'description' => t('El impuesto asociado al producto.'),
+        'required' => FALSE,
+        'translatable' => FALSE,
+        'settings' => [],
+        'default_value' => [],
+      ]);
+      $field_instance->save();
+    }
+    else {
+      \Drupal::logger('producto')->notice('El campo "impuesto_id" ya existe.');
+    }
+  
+    // Aplicar las actualizaciones al esquema.
+    \Drupal::service('entity.definition_update_manager')->applyUpdates();
+  
+    return t('El campo impuesto_id fue añadido exitosamente a la entidad Producto.');
+  }
+  

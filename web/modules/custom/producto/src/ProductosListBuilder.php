@@ -8,7 +8,7 @@ use Drupal\Core\Link;
 use Drupal\Core\Url;
 
 /**
- * Provides a list controller for the Producto entity.
+ * Contiene una lista para visualizar y gestionar Productos.
  */
 class ProductosListBuilder extends EntityListBuilder {
 
@@ -19,7 +19,6 @@ class ProductosListBuilder extends EntityListBuilder {
     $header['id'] = $this->t('ID');
     $header['nombre'] = $this->t('Nombre');
     $header['precio'] = $this->t('Precio');
-    $header['cantidad'] = $this->t('Cantidad');
     $header['impuesto'] = $this->t('Impuesto');
     $header['acciones'] = $this->t('Acciones');
     
@@ -33,11 +32,11 @@ class ProductosListBuilder extends EntityListBuilder {
     if (!$entity) {
       return;
     }
-  
+
     $row['id'] = $entity->id();
     $row['nombre'] = $entity->toLink($entity->label());
     $row['precio'] = $entity->get('precio')->value;
-    $row['cantidad'] = $entity->get('cantidad')->value;
+
   
     // Obtener los valores brutos de impuesto_id (puede ser un array con un solo valor)
     $impuesto_values = $entity->get('impuesto_id')->getValue();
@@ -49,12 +48,12 @@ class ProductosListBuilder extends EntityListBuilder {
     } else {
       \Drupal::messenger()->addMessage($this->t('Valor de impuesto_id: @val', ['@val' => print_r($impuesto_values, TRUE)]));
     }
-    // Si el array no está vacío y tiene al menos un valor
+
     if (!empty($impuesto_values)) {
-      // Procesar los valores de impuesto_id
+  
       foreach ($impuesto_values as $impuesto_value) {
-        // Aquí, ya no usamos 'target_id', sino que el valor directo es el ID
-        $impuesto_id = $impuesto_value; // El valor de impuesto_id es directamente el ID del impuesto.
+       
+        $impuesto_id = $impuesto_value; 
 
         // Cargar la entidad de impuesto usando el ID
         $impuesto_entity = \Drupal::entityTypeManager()->getStorage('impuestos')->load($impuesto_id);
@@ -74,14 +73,12 @@ class ProductosListBuilder extends EntityListBuilder {
     }
   
     // Enlaces de acciones...
-    $add_url = Url::fromRoute('producto.add_form', ['producto' => $entity->id()]);
+    
     $edit_url = Url::fromRoute('producto.edit_form', ['producto' => $entity->id()]);
     $delete_url = Url::fromRoute('producto.delete_form', ['producto' => $entity->id()]);
   
     $row['acciones'] = [
       'data' => [
-        Link::fromTextAndUrl($this->t('Añadir'), $add_url)->toRenderable(),
-        ['#markup' => ' | '],
         Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
         ['#markup' => ' | '],
         Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
@@ -89,6 +86,26 @@ class ProductosListBuilder extends EntityListBuilder {
     ];
   
     return $row;
+  }
+  /**
+   * {@inheritdoc}
+   */
+  public function render() {
+    // Botón "Agregar Producto"
+    $build['add_button'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Agregar Producto'),
+      '#url' => Url::fromRoute('producto.add_form'),
+      '#attributes' => [
+        'class' => ['button', 'button--primary'],
+        'style' => 'margin-bottom: 10px; display: inline-block;',
+      ],
+    ];
+
+    // Agregar la lista de impuestos
+    $build += parent::render();
+    
+    return $build;
   }
 }
 
