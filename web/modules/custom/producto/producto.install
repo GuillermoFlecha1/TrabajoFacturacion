@@ -1,7 +1,8 @@
 <?php
+
 /**
  * @file
- * Instalador del módulo producto.  
+ * Instalador del módulo producto.
  */
 
  use Drupal\Core\Database\Database;
@@ -138,4 +139,3 @@ function producto_update_9002() {
 
   \Drupal::messenger()->addMessage(t('Los campos descripcion__value y descripcion__format ahora pueden ser nulos.'));
 }
-

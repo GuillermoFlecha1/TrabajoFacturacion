@@ -7,7 +7,6 @@ use Drupal\Core\Entity\EntityListBuilder;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
 
-
 /**
  * Provides a list controller for the Impuestos entity.
  */
@@ -20,7 +19,6 @@ class ImpuestosListBuilder extends EntityListBuilder {
     $header['id'] = $this->t('ID');
     $header['nombre'] = $this->t('Nombre');
     $header['valor'] = $this->t('Valor');
-    $header['acciones'] = $this->t('Acciones');
     $header['acciones'] = $this->t('Acciones');
 
     return $header;
@@ -49,7 +47,6 @@ class ImpuestosListBuilder extends EntityListBuilder {
         Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
       ],
     ];
-
 
     return $row;
   }

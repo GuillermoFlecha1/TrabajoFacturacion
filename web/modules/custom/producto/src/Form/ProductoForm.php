@@ -15,8 +15,8 @@ class ProductoForm extends ContentEntityForm {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
-    
-    // Validación personalizada para otros campos
+
+    // Validación personalizada para el campo precio.
     if (isset($form['precio'])) {
       $form['precio']['#element_validate'][] = [$this, 'validatePrecio'];
     }
