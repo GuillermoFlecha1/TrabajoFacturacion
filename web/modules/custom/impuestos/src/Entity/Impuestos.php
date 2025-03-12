@@ -21,7 +21,7 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *   },
  *   handlers = {
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
- *     "list_builder" = "Drupal\impuestos\Entity\ImpuestosListBuilder",
+ *     "list_builder" = "Drupal\impuestos\ImpuestosListBuilder",
  *     "form" = {
  *       "default" = "Drupal\impuestos\Form\ImpuestosForm",
  *       "add" = "Drupal\impuestos\Form\ImpuestosForm",
@@ -31,11 +31,11 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *     "access" = "Drupal\Core\Entity\EntityAccessControlHandler"
  *   },
  *   links = {
- *     "canonical" = "/impuestos/{impuestos}",
- *     "add-form" = "/impuestos/add",
- *     "edit-form" = "/impuestos/{impuestos}/edit",
- *     "delete-form" = "/impuestos/{impuestos}/delete",
- *     "collection" = "/admin/structure/impuestos"
+ *     "canonical" = "/admin/impuestos/{impuestos}",
+ *     "add-form" = "/admin/impuestos/add",
+ *     "edit-form" = "/admin/impuestos/{impuestos}/edit",
+ *     "delete-form" = "/admin/impuestos/{impuestos}/delete",
+ *     "collection" = "/admin/impuestos"
  *   },
  *   field_ui_base_route = "impuestos.settings"
  * )

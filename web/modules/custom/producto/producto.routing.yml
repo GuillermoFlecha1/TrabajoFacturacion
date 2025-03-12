@@ -1,47 +1,39 @@
-producto.add-form:
-  path: '/producto/add'
+producto.add_form:
+  path: '/admin/producto/add'
   defaults:
-    _entity_form: 'producto.add'  # Debe coincidir con el namespace de tu clase
-    _title: 'Agregar Producto'
+    _entity_form: 'producto.add'
+    _title: 'Añadir Producto'
   requirements:
-    _permission: 'administer producto entities'
+    _permission: 'producto.add'
 
-producto.edit-form:
-  path: '/producto/{producto}/edit'
+producto.edit_form:
+  path: '/admin/producto/{producto}/edit'
   defaults:
-    _entity_form: 'producto.edit'  # Asegúrate de que ProductoForm esté en este namespace
+    _entity_form: 'producto.edit'
     _title: 'Editar Producto'
   requirements:
-    _permission: 'administer producto entities'
-  options:
-    parameters:
-      producto:
-        type: 'entity:producto'
+    _permission: 'producto.update'
 
-entity.producto.canonical:
-  path: '/producto/{producto}'
+producto.delete_form:
+  path: '/admin/producto/{producto}/delete'
   defaults:
-    _entity_view: 'producto.full' 
-    _title: 'Productos'
-  requirements:
-    _permission: 'administer producto entities'
-
-producto.list:
-  path: '/producto/list'
-  defaults:
-    _title: 'Lista de Productos'
-    _entity_list: producto
-  requirements:
-    _permission: 'administer producto entities'
-
-producto.delete-form:
-  path: '/producto/{producto}/delete'
-  defaults:
-    _entity_form: 'producto.delete'  # Verifica que esta clase exista
+    _entity_form: 'producto.delete'
     _title: 'Eliminar Producto'
   requirements:
-    _permission: 'administer producto entities'
-  options:
-    parameters:
-      producto:
-        type: 'entity:producto'
+    _permission: 'producto.delete'
+
+entity.producto.canonical:
+  path: '/admin/producto/{producto}'
+  defaults:
+    _entity_view: 'producto.full'
+    _title: 'Visualizar Producto'
+  requirements:
+    _permission: 'producto.view'
+
+entity.producto.collection:
+  path: '/admin/producto'
+  defaults:
+    _entity_list: 'producto'
+    _title: 'Lista de Productos'
+  requirements:
+    _permission: 'producto.view'
