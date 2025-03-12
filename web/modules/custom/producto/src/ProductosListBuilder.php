@@ -4,11 +4,9 @@ namespace Drupal\producto;
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityListBuilder;
-use Drupal\Core\Link;  // Asegúrate de importar Link
+use Drupal\Core\Link;
+use Drupal\Core\Url;
 
-/**
- * Provides a list controller for the Producto entity.
- */
 class ProductosListBuilder extends EntityListBuilder {
 
   /**
@@ -18,9 +16,9 @@ class ProductosListBuilder extends EntityListBuilder {
     $header['id'] = $this->t('ID');
     $header['nombre'] = $this->t('Nombre');
     $header['precio'] = $this->t('Precio');
-    $header['cantidad'] = $this->t('Cantidad'); // Cambiado de 'stock' a 'cantidad'
-    $header['acciones'] = $this->t('Acciones'); // Asegúrate de que "acciones" es el nombre que quieres mostrar
-    
+    $header['cantidad'] = $this->t('Cantidad');
+    $header['impuestos'] = $this->t('Impuesto'); // Aquí solo mostraremos el nombre del impuesto
+    $header['acciones'] = $this->t('Acciones');
     return $header;
   }
 
@@ -28,32 +26,83 @@ class ProductosListBuilder extends EntityListBuilder {
    * {@inheritdoc}
    */
   public function buildRow(EntityInterface $entity) {
-    // Asegúrate de que la entidad no sea null
     if (!$entity) {
       return;
     }
-    // Aquí definimos cómo se muestran las filas.
     $row['id'] = $entity->id();
     $row['nombre'] = $entity->toLink($entity->label());
-    $row['precio'] = $entity->get('precio')->value; // Campo 'precio'
-    $row['cantidad'] = $entity->get('cantidad')->value; // Campo 'cantidad' en lugar de 'stock'
+    $row['precio'] = $entity->get('precio')->value;
+    $row['cantidad'] = $entity->get('cantidad')->value;
 
-    // Agregar enlaces de acciones
-    $add_url = \Drupal\Core\Url::fromRoute('producto.add_form', ['producto' => $entity->id()]);
-    $edit_url = \Drupal\Core\Url::fromRoute('producto.edit_form', ['producto' => $entity->id()]);
-    $delete_url = \Drupal\Core\Url::fromRoute('producto.delete_form', ['producto' => $entity->id()]);
+    // Intentar obtener las entidades de Impuestos referenciadas.
+    $impuestos = $entity->get('impuesto_id')->referencedEntities();
 
-    // Definir las acciones de editar y eliminar
+    // Si no se obtuvieron entidades, intentar cargar manualmente usando el valor del campo.
+    if (empty($impuestos)) {
+      $impuesto_id = $entity->get('impuesto_id')->value;
+      if (!empty($impuesto_id)) {
+        $impuesto = \Drupal::entityTypeManager()->getStorage('impuestos')->load($impuesto_id);
+        if ($impuesto) {
+          $impuestos[] = $impuesto;
+        }
+      }
+    }
+
+    // Si no hay impuestos, mostrar un mensaje adecuado
+    if (empty($impuestos)) {
+      $row['impuestos'] = $this->t('No hay impuestos asociados');
+    } else {
+      // Recoger los nombres de los impuestos asociados (campo 'nombre' en la entidad Impuestos)
+      $impuesto_nombres = [];
+      $valor_impuesto = '';
+      foreach ($impuestos as $impuesto) {
+        if ($impuesto->hasField('nombre')) {
+          $nombre = $impuesto->get('nombre')->value;
+          if (!empty($nombre)) {
+            $impuesto_nombres[] = $nombre;
+          }
+        }
+        // Obtener el valor del impuesto si existe
+        if ($impuesto->hasField('valor')) {
+          $valor_impuesto = $impuesto->get('valor')->value;
+        }
+      }
+
+      // Mostrar el valor o el nombre del impuesto
+      if (!empty($valor_impuesto)) {
+        $row['impuestos'] = $valor_impuesto . '%'; // Ejemplo: 21.00%
+      } else {
+        $row['impuestos'] = !empty($impuesto_nombres) ? implode(', ', $impuesto_nombres) : $this->t('No hay impuestos asociados');
+      }
+    }
+
+    // Enlaces de acciones.
+    $edit_url = Url::fromRoute('producto.edit_form', ['producto' => $entity->id()]);
+    $delete_url = Url::fromRoute('producto.delete_form', ['producto' => $entity->id()]);
     $row['acciones'] = [
       'data' => [
-        Link::fromTextAndUrl($this->t('Añadir'), $add_url)->toRenderable(),
-        ['#markup' => ' | '],
         Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
         ['#markup' => ' | '],
         Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
       ],
     ];
-
     return $row;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function render() {
+    $build['add_button'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Agregar Producto'),
+      '#url' => Url::fromRoute('producto.add_form'),
+      '#attributes' => [
+        'class' => ['button', 'button--primary'],
+        'style' => 'margin-bottom: 10px; display: inline-block;',
+      ],
+    ];
+    $build += parent::render();
+    return $build;
   }
 }
