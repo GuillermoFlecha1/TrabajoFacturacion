@@ -6,8 +6,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityListBuilder;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
-use Drupal\Core\Link;
-use Drupal\Core\Url;
+
 
 /**
  * Provides a list controller for the Impuestos entity.
@@ -37,11 +36,6 @@ class ImpuestosListBuilder extends EntityListBuilder {
 
     $row['id'] = $entity->id();
     $row['nombre'] = $entity->toLink($entity->label());
-    $row['valor'] = $entity->get('valor')->value . '%';
-
-    // Definir enlaces de edición y eliminación
-    $edit_url = Url::fromRoute('impuestos.edit_form', ['impuestos' => $entity->id()]);
-    $delete_url = Url::fromRoute('impuestos.delete_form', ['impuestos' => $entity->id()]);
     $row['valor'] = $entity->get('valor')->value . '%';
 
     // Definir enlaces de edición y eliminación
