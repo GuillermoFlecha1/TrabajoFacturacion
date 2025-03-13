@@ -21,10 +21,6 @@ class ProductoForm extends ContentEntityForm {
     if (isset($form['precio'])) {
       $form['precio']['#element_validate'][] = [$this, 'validatePrecio'];
     }
-    // Validación personalizada para el campo cantidad.
-    if (isset($form['cantidad'])) {
-      $form['cantidad']['#element_validate'][] = [$this, 'validateCantidad'];
-    }
 
     // Elimina el widget original del campo impuesto_id.
     if (isset($form['impuesto_id'])) {
@@ -90,25 +86,6 @@ class ProductoForm extends ContentEntityForm {
   }
 
   /**
-   * Validación del campo cantidad.
-   */
-  public function validateCantidad($element, FormStateInterface $form_state, $form) {
-    $cantidad = $form_state->getValue('cantidad');
-    if (is_array($cantidad)) {
-      if (isset($cantidad[0]['value'])) {
-        $cantidad = $cantidad[0]['value'];
-      }
-      elseif (isset($cantidad['value'])) {
-        $cantidad = $cantidad['value'];
-      }
-    }
-    $cantidad_numeric = intval($cantidad);
-    if ($cantidad_numeric < 1) {
-      $form_state->setError($element, t('La cantidad debe ser mayor que 0'));
-    }
-  }
-
-  /**
    * Guardado del formulario.
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
@@ -117,11 +94,17 @@ class ProductoForm extends ContentEntityForm {
     
     // Obtener el valor anidado del campo impuesto_id.
     $impuesto_values = $form_state->getValue('impuesto_id');
-    // Se asume que la estructura es: [0 => ['target_id' => $valor]]
-    // Asignamos directamente ese array a la entidad.
-    $this->entity->set('impuesto_id', $impuesto_values);
+
+    // Verifica que el valor esté correctamente estructurado
+    if (isset($impuesto_values[0]['target_id'])) {
+      // Solo se debe pasar el target_id (ID de la entidad)
+      $this->entity->set('impuesto_id', $impuesto_values[0]['target_id']);
+    }
+
+    // Guarda la entidad.
     $this->entity->save();
 
-    \Drupal::messenger()->addMessage($this->t('La entidad producto ha sido guardada'));
+    // Mensaje de confirmación.
+    \Drupal::messenger()->addMessage($this->t('La entidad producto ha sido guardada.'));
   }
 }

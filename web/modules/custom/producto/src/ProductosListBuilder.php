@@ -16,8 +16,7 @@ class ProductosListBuilder extends EntityListBuilder {
     $header['id'] = $this->t('ID');
     $header['nombre'] = $this->t('Nombre');
     $header['precio'] = $this->t('Precio');
-    $header['cantidad'] = $this->t('Cantidad');
-    $header['impuestos'] = $this->t('Impuesto'); // Aquí solo mostraremos el nombre del impuesto
+    $header['impuestos'] = $this->t('Impuesto');
     $header['acciones'] = $this->t('Acciones');
     return $header;
   }
@@ -32,7 +31,6 @@ class ProductosListBuilder extends EntityListBuilder {
     $row['id'] = $entity->id();
     $row['nombre'] = $entity->toLink($entity->label());
     $row['precio'] = $entity->get('precio')->value;
-    $row['cantidad'] = $entity->get('cantidad')->value;
 
     // Intentar obtener las entidades de Impuestos referenciadas.
     $impuestos = $entity->get('impuesto_id')->referencedEntities();
@@ -70,7 +68,7 @@ class ProductosListBuilder extends EntityListBuilder {
 
       // Mostrar el valor o el nombre del impuesto
       if (!empty($valor_impuesto)) {
-        $row['impuestos'] = $valor_impuesto . '%'; // Ejemplo: 21.00%
+        $row['impuestos'] = $valor_impuesto . '%'; 
       } else {
         $row['impuestos'] = !empty($impuesto_nombres) ? implode(', ', $impuesto_nombres) : $this->t('No hay impuestos asociados');
       }

@@ -119,23 +119,6 @@ class Productos extends ContentEntityBase {
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
-    // Campo 'cantidad'
-    $fields['cantidad'] = BaseFieldDefinition::create('integer')
-      ->setLabel(t('Cantidad'))
-      ->setDescription(t('La cantidad disponible del producto.'))
-      ->setRequired(TRUE)
-      ->setDisplayOptions('view', [
-        'label' => 'above',
-        'type' => 'number_integer',
-        'weight' => 3,
-      ])
-      ->setDisplayOptions('form', [
-        'type' => 'number',
-        'weight' => 3,
-      ])
-      ->setDisplayConfigurable('form', TRUE)
-      ->setDisplayConfigurable('view', TRUE);
-
       // Campo 'impuesto'
       $fields['impuesto_id'] = BaseFieldDefinition::create('entity_reference')
       ->setLabel(t('Impuesto'))
@@ -145,11 +128,11 @@ class Productos extends ContentEntityBase {
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'entity_reference_label',
-        'weight' => 4,
+        'weight' => 3,
       ])
       ->setDisplayOptions('form', [
         'type' => 'entity_reference_autocomplete',
-        'weight' => 4,
+        'weight' => 3,
         'settings' => [
           'match_operator' => 'CONTAINS',
           'size' => 60,

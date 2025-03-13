@@ -1,0 +1,132 @@
+<?php
+
+/**
+ * @file
+ * Instalador del módulo producto.
+ */
+
+use Drupal\Core\Database\Database;
+
+/**
+ * Implementa hook_schema().
+ */
+function producto_schema() {
+  $schema['producto'] = [
+    'description' => 'Tabla que almacena los productos.',
+    'fields' => [
+      'id' => [
+        'description' => 'ID del producto.',
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'uuid' => [
+        'description' => 'UUID del producto.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ],
+      'nombre' => [
+        'description' => 'Nombre del producto.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ],
+      'precio' => [
+        'description' => 'Precio del producto.',
+        'type' => 'numeric',
+        'precision' => 10,
+        'scale' => 2,
+        'not null' => TRUE,
+      ],
+      'cantidad' => [
+        'description' => 'Cantidad disponible del producto.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'impuesto_id' => [
+        'description' => 'ID del impuesto asociado.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uuid' => ['uuid'],
+    ],
+    'foreign keys' => [
+      'impuesto_id' => [
+        'table' => 'impuestos',
+        'columns' => ['impuesto_id' => 'id'],
+      ],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implementa hook_update_N().
+ * Agrega el campo 'impuesto_id' si no existe en la tabla 'producto'.
+ */
+function producto_update_9001() {
+  $schema = \Drupal::database()->schema();
+  $connection = \Drupal::database();
+
+  // Verifica si la columna 'impuesto_id' ya existe.
+  if (!$schema->fieldExists('producto', 'impuesto_id')) {
+    $schema->addField('producto', 'impuesto_id', [
+      'description' => 'ID del impuesto asociado.',
+      'type' => 'int',
+      'not null' => FALSE,
+    ]);
+  }
+
+  // Verificar si ya existe la clave foránea manualmente.
+  $exists = $connection->query("
+    SELECT CONSTRAINT_NAME 
+    FROM information_schema.KEY_COLUMN_USAGE 
+    WHERE TABLE_NAME = 'producto' 
+    AND COLUMN_NAME = 'impuesto_id' 
+    AND REFERENCED_TABLE_NAME = 'impuestos'
+  ")->fetchField();
+
+  // Si no existe, agregar la clave foránea con SQL.
+  if (!$exists) {
+    $connection->query("
+      ALTER TABLE producto 
+      ADD CONSTRAINT fk_producto_impuesto FOREIGN KEY (impuesto_id) 
+      REFERENCES impuestos(id) ON DELETE SET NULL
+    ");
+  }
+
+  \Drupal::messenger()->addMessage(t('Se ha agregado el campo impuesto_id y la clave foránea a la tabla producto.'));
+}
+
+/**
+ * Implementa hook_update_N().
+ * Agrega nuevamente el campo 'cantidad' a la tabla 'producto'.
+ */
+function producto_update_9004() {
+  $schema = \Drupal::database()->schema();
+  $connection = \Drupal::database();
+
+  if (!$schema->fieldExists('producto', 'cantidad')) {
+    // Agregar el campo usando la API de Drupal.
+    $schema->addField('producto', 'cantidad', [
+      'description' => 'Cantidad disponible del producto.',
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+    ]);
+
+    // En caso de fallo, usar una consulta SQL directa.
+    try {
+      $connection->query("ALTER TABLE producto ADD COLUMN cantidad INT NOT NULL DEFAULT 0");
+    } catch (Exception $e) {
+      \Drupal::logger('producto')->error('Error al agregar la columna cantidad: @error', ['@error' => $e->getMessage()]);
+    }
+
+    \Drupal::messenger()->addMessage(t('El campo "cantidad" ha sido agregado a la tabla producto.'));
+  }
+}
