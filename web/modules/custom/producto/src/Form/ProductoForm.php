@@ -14,17 +14,11 @@ class ProductoForm extends ContentEntityForm {
    * Construcción del formulario.
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    // Construye el formulario a partir de la definición del formulario base.
     $form = parent::buildForm($form, $form_state);
 
     // Validación personalizada para el campo precio.
     if (isset($form['precio'])) {
       $form['precio']['#element_validate'][] = [$this, 'validatePrecio'];
-    }
-
-    // Elimina el widget original del campo impuesto_id.
-    if (isset($form['impuesto_id'])) {
-      unset($form['impuesto_id']);
     }
 
     // Prepara el valor por defecto (si es edición).
@@ -34,20 +28,26 @@ class ProductoForm extends ContentEntityForm {
       $default_value = $this->entity->get('impuesto_id')->first()->getValue()['target_id'];
     }
 
-    // Agrega el campo de impuesto_id como un desplegable (select) anidado.
-    // Esto genera una estructura del tipo:
-    // [ 0 => [ 'target_id' => <select> ] ]
-    $form['impuesto_id'] = [
-      0 => [
-        'target_id' => [
-          '#type' => 'select',
-          '#title' => $this->t('Impuesto'),
-          '#options' => $this->getImpuestosOptions(),
-          '#default_value' => $default_value,
-          '#required' => TRUE,
-        ],
-      ],
-    ];
+    // En vez de unsetear, sobreescribe el widget del campo 'impuesto_id'.
+    if (isset($form['impuesto_id']['widget'][0]['target_id'])) {
+      $form['impuesto_id']['widget'][0]['target_id'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Impuesto'),
+        '#options' => $this->getImpuestosOptions(),
+        '#default_value' => $default_value,
+        '#required' => TRUE,
+      ];
+    }
+    else {
+      // Si la estructura no es la esperada, agrega el elemento de forma directa.
+      $form['impuesto_id'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Impuesto'),
+        '#options' => $this->getImpuestosOptions(),
+        '#default_value' => $default_value,
+        '#required' => TRUE,
+      ];
+    }
 
     return $form;
   }
@@ -57,12 +57,12 @@ class ProductoForm extends ContentEntityForm {
    */
   private function getImpuestosOptions() {
     $options = [];
-    // Carga todas las entidades de tipo 'impuestos'.
+    // Cargar todas las entidades de tipo 'impuestos'.
     $impuestos = \Drupal::entityTypeManager()->getStorage('impuestos')->loadMultiple();
-    // Prepara las opciones: la clave es el ID y el valor el campo 'nombre'.
     foreach ($impuestos as $impuesto) {
       $options[$impuesto->id()] = $impuesto->get('nombre')->value;
     }
+    \Drupal::logger('producto')->notice('Impuestos options: ' . print_r($options, TRUE));
     return $options;
   }
 
@@ -91,19 +91,15 @@ class ProductoForm extends ContentEntityForm {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Se guarda el formulario base.
     parent::submitForm($form, $form_state);
-    
-    // Obtener el valor anidado del campo impuesto_id.
-    $impuesto_values = $form_state->getValue('impuesto_id');
 
-    // Verifica que el valor esté correctamente estructurado
-    if (isset($impuesto_values[0]['target_id'])) {
-      // Solo se debe pasar el target_id (ID de la entidad)
-      $this->entity->set('impuesto_id', $impuesto_values[0]['target_id']);
+    // Obtener el valor del campo 'impuesto_id'.
+    $impuesto_value = $form_state->getValue('impuesto_id');
+    if (!empty($impuesto_value)) {
+      // Asigna el valor directamente a la entidad.
+      $this->entity->set('impuesto_id', $impuesto_value);
     }
-
     // Guarda la entidad.
     $this->entity->save();
-
     // Mensaje de confirmación.
     \Drupal::messenger()->addMessage($this->t('La entidad producto ha sido guardada.'));
   }

@@ -21,57 +21,33 @@ class ProductosListBuilder extends EntityListBuilder {
     return $header;
   }
 
-  /**
+    /**
    * {@inheritdoc}
    */
   public function buildRow(EntityInterface $entity) {
     if (!$entity) {
       return;
     }
+
     $row['id'] = $entity->id();
     $row['nombre'] = $entity->toLink($entity->label());
     $row['precio'] = $entity->get('precio')->value;
 
-    // Intentar obtener las entidades de Impuestos referenciadas.
-    $impuestos = $entity->get('impuesto_id')->referencedEntities();
+    // Obtener el ID del impuesto asociado
+    $impuesto_id = $entity->get('impuesto_id')->target_id;
 
-    // Si no se obtuvieron entidades, intentar cargar manualmente usando el valor del campo.
-    if (empty($impuestos)) {
-      $impuesto_id = $entity->get('impuesto_id')->value;
-      if (!empty($impuesto_id)) {
-        $impuesto = \Drupal::entityTypeManager()->getStorage('impuestos')->load($impuesto_id);
-        if ($impuesto) {
-          $impuestos[] = $impuesto;
-        }
-      }
-    }
+    if (!empty($impuesto_id)) {
+      // Cargar la entidad de impuestos
+      $impuesto = \Drupal::entityTypeManager()->getStorage('impuestos')->load($impuesto_id);
 
-    // Si no hay impuestos, mostrar un mensaje adecuado
-    if (empty($impuestos)) {
-      $row['impuestos'] = $this->t('No hay impuestos asociados');
-    } else {
-      // Recoger los nombres de los impuestos asociados (campo 'nombre' en la entidad Impuestos)
-      $impuesto_nombres = [];
-      $valor_impuesto = '';
-      foreach ($impuestos as $impuesto) {
-        if ($impuesto->hasField('nombre')) {
-          $nombre = $impuesto->get('nombre')->value;
-          if (!empty($nombre)) {
-            $impuesto_nombres[] = $nombre;
-          }
-        }
-        // Obtener el valor del impuesto si existe
-        if ($impuesto->hasField('valor')) {
-          $valor_impuesto = $impuesto->get('valor')->value;
-        }
-      }
-
-      // Mostrar el valor o el nombre del impuesto
-      if (!empty($valor_impuesto)) {
-        $row['impuestos'] = $valor_impuesto . '%'; 
+      if ($impuesto && $impuesto->hasField('valor')) {
+        $valor_impuesto = $impuesto->get('valor')->value;
+        $row['impuestos'] = $valor_impuesto . '%';
       } else {
-        $row['impuestos'] = !empty($impuesto_nombres) ? implode(', ', $impuesto_nombres) : $this->t('No hay impuestos asociados');
+        $row['impuestos'] = $this->t('No hay impuestos asociados');
       }
+    } else {
+      $row['impuestos'] = $this->t('No hay impuestos asociados');
     }
 
     // Enlaces de acciones.
@@ -84,6 +60,7 @@ class ProductosListBuilder extends EntityListBuilder {
         Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
       ],
     ];
+
     return $row;
   }
 
