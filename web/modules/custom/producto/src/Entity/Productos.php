@@ -119,30 +119,29 @@ class Productos extends ContentEntityBase {
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
-    // Campo 'impuesto'
-    $fields['impuesto_id'] = BaseFieldDefinition::create('entity_reference')
-  ->setLabel(t('Impuesto'))
-  ->setDescription(t('El impuesto aplicado al producto.'))
-  ->setRequired(FALSE)
-  ->setSetting('target_type', 'impuestos')
-  ->setSetting('cardinality', 1)  // <--- Esto fuerza a que el campo sea único.
-  ->setDisplayOptions('view', [
-    'label' => 'above',
-    'type' => 'entity_reference_label',
-    'weight' => 3,
-  ])
-  ->setDisplayOptions('form', [
-    'type' => 'entity_reference_autocomplete',
-    'weight' => 3,
-    'settings' => [
-      'match_operator' => 'CONTAINS',
-      'size' => 60,
-      'placeholder' => t('Selecciona un impuesto'),
-    ],
-  ])
-  ->setDisplayConfigurable('form', TRUE)
-  ->setDisplayConfigurable('view', TRUE);
-
+      // Campo 'impuesto'
+      $fields['impuesto_id'] = BaseFieldDefinition::create('entity_reference')
+      ->setLabel(t('Impuesto'))
+      ->setDescription(t('El impuesto aplicado al producto.'))
+      ->setRequired(FALSE) // Opcional al principio para evitar conflictos.
+      ->setSetting('target_type', 'impuestos') // Apunta a la entidad 'impuestos'.
+      ->setDisplayOptions('view', [
+        'label' => 'above',
+        'type' => 'entity_reference_label',
+        'weight' => 3,
+      ])
+      ->setDisplayOptions('form', [
+        'type' => 'entity_reference_autocomplete',
+        'weight' => 3,
+        'settings' => [
+          'match_operator' => 'CONTAINS',
+          'size' => 60,
+          'placeholder' => t('Selecciona un impuesto'),
+        ],
+      ])
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayConfigurable('view', TRUE);
+    
     return $fields;
   }
 }

@@ -1,47 +1,141 @@
 <?php
+/**
+ * @file
+ * Instalador del módulo producto.  
+ */
 
-function producto_update_11001() {
-    // Verificar si el campo 'impuesto_id' ya está configurado.
-    $entity_type_manager = \Drupal::service('entity_type.manager');
-    $field_storage_config = $entity_type_manager->getStorage('field_storage_config')
-      ->loadByProperties(['field_name' => 'impuesto_id', 'entity_type' => 'producto']);
-  
-    if (empty($field_storage_config)) {
-      // Crear la configuración del almacenamiento del campo.
-      $field_storage = \Drupal\field\Entity\FieldStorageConfig::create([
-        'field_name' => 'impuesto_id',
-        'entity_type' => 'producto',
-        'type' => 'entity_reference',
-        'settings' => [
-          'target_type' => 'impuestos',
-          'handler' => 'default',
+ use Drupal\Core\Database\Database;
+ /**
+  * Implementa hook_schema().
+  */
+  function producto_schema() {
+    $schema['producto'] = [
+      'description' => 'Tabla que almacena los productos.',
+      'fields' => [
+        'id' => [
+          'description' => 'ID del producto.',
+          'type' => 'serial',
+          'not null' => TRUE,
         ],
-        'cardinality' => 1,
-        'translatable' => FALSE,
-      ]);
-      $field_storage->save();
+        'uuid' => [
+          'description' => 'UUID del producto.',
+          'type' => 'varchar',
+          'length' => 128,
+          'not null' => TRUE,
+        ],
+        'nombre' => [
+          'description' => 'Nombre del producto.',
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+        ],
+        'precio' => [
+          'description' => 'Precio del producto.',
+          'type' => 'numeric',
+          'precision' => 10,
+          'scale' => 2,
+          'not null' => TRUE,
+        ],
+        'descripcion__value' => [
+          'description' => 'Descripción detallada del producto.',
+          'type' => 'text',
+          'not null' => FALSE,
+        ],
+        'descripcion__format' => [
+          'description' => 'Formato de la descripción del producto.',
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => FALSE,
+        ],
+        'impuesto_id' => [
+          'description' => 'ID del impuesto asociado.',
+          'type' => 'int',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['id'],
+      'unique keys' => [
+        'uuid' => ['uuid'],
+      ],
+      'foreign keys' => [
+        'impuesto_id' => [
+          'table' => 'impuestos',
+          'columns' => ['impuesto_id' => 'id'],
+        ],
+      ],
+    ];
   
-      // Crear la configuración de la instancia del campo.
-      $field_instance = \Drupal\field\Entity\FieldConfig::create([
-        'field_name' => 'impuesto_id',
-        'entity_type' => 'producto',
-        'bundle' => 'producto',
-        'label' => t('Impuesto'),
-        'description' => t('El impuesto asociado al producto.'),
-        'required' => FALSE,
-        'translatable' => FALSE,
-        'settings' => [],
-        'default_value' => [],
-      ]);
-      $field_instance->save();
-    }
-    else {
-      \Drupal::logger('producto')->notice('El campo "impuesto_id" ya existe.');
-    }
-  
-    // Aplicar las actualizaciones al esquema.
-    \Drupal::service('entity.definition_update_manager')->applyUpdates();
-  
-    return t('El campo impuesto_id fue añadido exitosamente a la entidad Producto.');
+    return $schema;
   }
   
+ 
+ /**
+  * Implementa hook_update_N().
+  * Agrega el campo 'impuesto_id' y otros campos si no existen en la tabla 'producto'.
+  */
+ function producto_update_9001() {
+   $schema = \Drupal::database()->schema();
+   $connection = \Drupal::database();
+ 
+   // Verifica si la columna 'impuesto_id' ya existe.
+   if (!$schema->fieldExists('producto', 'impuesto_id')) {
+     $schema->addField('producto', 'impuesto_id', [
+       'description' => 'ID del impuesto asociado.',
+       'type' => 'int',
+       'not null' => FALSE,
+     ]);
+   }
+ 
+   // Verifica si la columna 'descripcion' ya existe.
+   if (!$schema->fieldExists('producto', 'descripcion')) {
+     $schema->addField('producto', 'descripcion', [
+       'description' => 'Descripción detallada del producto.',
+       'type' => 'text',
+       'not null' => FALSE,
+     ]);
+   }
+ 
+   // Verificar si ya existe la clave foránea manualmente.
+   $exists = $connection->query("
+     SELECT CONSTRAINT_NAME 
+     FROM information_schema.KEY_COLUMN_USAGE 
+     WHERE TABLE_NAME = 'producto' 
+     AND COLUMN_NAME = 'impuesto_id' 
+     AND REFERENCED_TABLE_NAME = 'impuestos'
+   ")->fetchField();
+ 
+   // Si no existe, agregar la clave foránea con SQL.
+   if (!$exists) {
+     $connection->query("
+       ALTER TABLE producto 
+       ADD CONSTRAINT fk_producto_impuesto FOREIGN KEY (impuesto_id) 
+       REFERENCES impuestos(id) ON DELETE SET NULL
+     ");
+   }
+ 
+   \Drupal::messenger()->addMessage(t('Se han agregado los campos impuesto_id, descripcion, cantidad y la clave foránea a la tabla producto.'));
+ }
+
+ /**
+ * Implementa hook_update_N().
+ * Permite que los campos 'descripcion__value' y 'descripcion__format' sean nulos.
+ */
+function producto_update_9002() {
+  $schema = \Drupal::database()->schema();
+  $connection = \Drupal::database();
+  
+  // Asegúrate de que los campos 'descripcion__value' y 'descripcion__format' existen antes de modificarlos.
+  
+  // Modificar la columna 'descripcion__value' para permitir valores nulos.
+  if ($schema->fieldExists('producto', 'descripcion__value')) {
+    $connection->query("ALTER TABLE {producto} CHANGE descripcion__value descripcion__value TEXT NULL");
+  }
+  
+  // Modificar la columna 'descripcion__format' para permitir valores nulos.
+  if ($schema->fieldExists('producto', 'descripcion__format')) {
+    $connection->query("ALTER TABLE {producto} CHANGE descripcion__format descripcion__format VARCHAR(255) NULL");
+  }
+
+  \Drupal::messenger()->addMessage(t('Los campos descripcion__value y descripcion__format ahora pueden ser nulos.'));
+}
+

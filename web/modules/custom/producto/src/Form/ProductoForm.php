@@ -32,20 +32,26 @@ class ProductoForm extends ContentEntityForm {
       $default_value = $this->entity->get('impuesto_id')->first()->getValue()['target_id'];
     }
 
-    // Agrega el campo de impuesto_id como un desplegable (select) anidado.
-    // Esto genera una estructura del tipo:
-    // [ 0 => [ 'target_id' => <select> ] ]
-    $form['impuesto_id'] = [
-      0 => [
-        'target_id' => [
-          '#type' => 'select',
-          '#title' => $this->t('Impuesto'),
-          '#options' => $this->getImpuestosOptions(),
-          '#default_value' => $default_value,
-          '#required' => TRUE,
-        ],
-      ],
-    ];
+    // En vez de unsetear, sobreescribe el widget del campo 'impuesto_id'.
+    if (isset($form['impuesto_id']['widget'][0]['target_id'])) {
+      $form['impuesto_id']['widget'][0]['target_id'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Impuesto'),
+        '#options' => $this->getImpuestosOptions(),
+        '#default_value' => $default_value,
+        '#required' => TRUE,
+      ];
+    }
+    else {
+      // Si la estructura no es la esperada, agrega el elemento de forma directa.
+      $form['impuesto_id'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Impuesto'),
+        '#options' => $this->getImpuestosOptions(),
+        '#default_value' => $default_value,
+        '#required' => TRUE,
+      ];
+    }
 
     return $form;
   }
@@ -55,22 +61,20 @@ class ProductoForm extends ContentEntityForm {
    */
   private function getImpuestosOptions() {
     $options = [];
-    // Carga todas las entidades de tipo 'impuestos'.
+    // Cargar todas las entidades de tipo 'impuestos'.
     $impuestos = \Drupal::entityTypeManager()->getStorage('impuestos')->loadMultiple();
-    // Prepara las opciones: la clave es el ID y el valor el campo 'nombre'.
     foreach ($impuestos as $impuesto) {
       $options[$impuesto->id()] = $impuesto->get('nombre')->value;
     }
+    \Drupal::logger('producto')->notice('Impuestos options: ' . print_r($options, TRUE));
     return $options;
   }
-  
+
   /**
    * Validación del campo precio.
    */
   public function validatePrecio($element, FormStateInterface $form_state, $form) {
     $precio = $form_state->getValue('precio');
-
-    // Si el precio viene como un array indexado, extraer el primer precio.
     if (is_array($precio)) {
       if (isset($precio[0]['value'])) {
         $precio = $precio[0]['value'];
@@ -79,40 +83,28 @@ class ProductoForm extends ContentEntityForm {
         $precio = $precio['value'];
       }
     }
-
-    // Convertir a número (float) para que se pueda comparar.
     $precio_numeric = floatval($precio);
-
-    // Verificar que el precio sea mayor que 0.
     if ($precio_numeric < 1) {
       $form_state->setError($element, t('El precio debe ser mayor que 0'));
     }
   }
 
- /**
- * Guardado del formulario.
- */
-public function submitForm(array &$form, FormStateInterface $form_state) {
-  parent::submitForm($form, $form_state);
+  /**
+   * Guardado del formulario.
+   */
+  public function submitForm(array &$form, FormStateInterface $form_state) {
+    // Se guarda el formulario base.
+    parent::submitForm($form, $form_state);
 
-  // Obtener la entidad producto
-  $producto = $this->entity;
-
-  // Obtener el valor de 'impuesto_id' del formulario
-  $impuesto_target_id = $form_state->getValue('impuesto_id');
-
-  // Verificar si se ha seleccionado un valor para impuesto_id
-  if ($impuesto_target_id) {
-    // Asignar el valor de 'impuesto_id' como una referencia de entidad
-    $producto->set('impuesto_id', ['target_id' => $impuesto_target_id]);
-
-    \Drupal::messenger()->addMessage($this->t('Se ha asignado el impuesto_id: @impuesto', ['@impuesto' => $impuesto_target_id]));
-  } else {
-    \Drupal::messenger()->addMessage($this->t('No se ha seleccionado un impuesto.'));
+    // Obtener el valor del campo 'impuesto_id'.
+    $impuesto_value = $form_state->getValue('impuesto_id');
+    if (!empty($impuesto_value)) {
+      // Asigna el valor directamente a la entidad.
+      $this->entity->set('impuesto_id', $impuesto_value);
+    }
+    // Guarda la entidad.
+    $this->entity->save();
+    // Mensaje de confirmación.
+    \Drupal::messenger()->addMessage($this->t('La entidad producto ha sido guardada.'));
   }
-
-  \Drupal::messenger()->addMessage($this->t("La entidad producto ha sido guardada"));
-}
-
-
 }
