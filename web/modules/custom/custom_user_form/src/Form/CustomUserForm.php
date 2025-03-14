@@ -5,13 +5,13 @@ namespace Drupal\custom_user_form\Form;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\user\Entity\User;
+use Drupal\user\RoleInterface;
 
 /**
- * Clase que implementa el formulario para crear nuevos usuarios.
+ * Clase que implementa el formulario para crear nuevos usuarios con roles.
  */
 class CustomUserForm extends FormBase
 {
-
     /**
      * {@inheritdoc}
      */
@@ -25,7 +25,6 @@ class CustomUserForm extends FormBase
      */
     public function buildForm(array $form, FormStateInterface $form_state)
     {
-
         // Campo para el nombre de usuario.
         $form['username'] = [
             '#type' => 'textfield',
@@ -54,6 +53,22 @@ class CustomUserForm extends FormBase
             '#required' => TRUE,
         ];
 
+        // Obtener todos los roles excepto "anonymous" y "authenticated".
+        $roles = array_filter(\Drupal\user\Entity\Role::loadMultiple(), function ($role) {
+            return $role->id() !== RoleInterface::ANONYMOUS_ID && $role->id() !== RoleInterface::AUTHENTICATED_ID;
+        });
+        $roles = array_map(function ($role) {
+            return $role->label();
+        }, $roles);
+
+        // Campo para seleccionar el rol.
+        $form['role'] = [
+            '#type' => 'select',
+            '#title' => $this->t('Rol de usuario'),
+            '#options' => $roles,
+            '#required' => TRUE,
+        ];
+
         // Botón de envío.
         $form['submit'] = [
             '#type' => 'submit',
@@ -66,45 +81,40 @@ class CustomUserForm extends FormBase
     /**
      * {@inheritdoc}
      */
-    /**
-     * {@inheritdoc}
-     */
     public function validateForm(array &$form, FormStateInterface $form_state)
     {
         $dni = strtoupper(trim($form_state->getValue('dni')));
 
-        // El DNI debe tener exactamente 9 caracteres (8 números y 1 letra).
+        // Validar formato del DNI.
         if (strlen($dni) !== 9) {
             $form_state->setErrorByName('dni', $this->t('El DNI debe tener 9 caracteres: 8 números y 1 letra.'));
             return;
         }
 
-        // Extraer la parte numérica y la letra.
         $numero = substr($dni, 0, 8);
         $letra = substr($dni, 8, 1);
 
-        // Validar que los primeros 8 caracteres sean números.
         if (!ctype_digit($numero)) {
             $form_state->setErrorByName('dni', $this->t('Los primeros 8 caracteres del DNI deben ser números.'));
             return;
         }
 
-        // Validar que el último carácter sea una letra.
         if (!ctype_alpha($letra)) {
             $form_state->setErrorByName('dni', $this->t('El último carácter del DNI debe ser una letra.'));
             return;
         }
 
-        // Calcular la letra correcta según el algoritmo español.
+        // Comprobar la letra correcta.
         $letras = "TRWAGMYFPDXBNJZSQVHLCKE";
         $pos = intval($numero) % 23;
         $letra_correcta = $letras[$pos];
 
         if ($letra !== $letra_correcta) {
-            $form_state->setErrorByName('dni', $this->t('El DNI no es válido. La letra debe ser @letra_correcta.', ['@letra_correcta' => $letra_correcta]));
+            $form_state->setErrorByName('dni', $this->t('El DNI no es válido. La letra debe ser @letra_correcta.', [
+                '@letra_correcta' => $letra_correcta,
+            ]));
         }
     }
-
 
     /**
      * {@inheritdoc}
@@ -123,15 +133,21 @@ class CustomUserForm extends FormBase
         $user->activate();
 
         // Guardar el valor del campo DNI.
-        // Asegúrate de que el nombre de máquina del campo sea el correcto (por ejemplo, 'field_dni').
         $user->set('field_dni', $form_state->getValue('dni'));
+
+        // Asignar el rol seleccionado.
+        $selected_role = $form_state->getValue('role');
+        if ($selected_role) {
+            $user->addRole($selected_role);
+        }
 
         // Guardar el usuario.
         $user->save();
 
-        // Mensaje de confirmación usando getAccountName() en lugar de getUsername().
-        $this->messenger()->addStatus($this->t('El usuario %name ha sido creado.', [
+        // Mensaje de confirmación.
+        $this->messenger()->addStatus($this->t('El usuario %name ha sido creado con el rol %role.', [
             '%name' => $user->getAccountName(),
+            '%role' => $selected_role,
         ]));
     }
 }

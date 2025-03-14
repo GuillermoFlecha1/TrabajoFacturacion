@@ -1,0 +1,19 @@
+facturas.add:
+  title: 'Añadir facturas'
+  description: 'Permite añadir nuevos facturas'
+  restrict access: false
+
+facturas.view:
+  title: 'Ver facturas'
+  description: 'Permite ver los facturas'
+  restrict access: false
+
+facturas.update:
+  title: 'Editar facturas'
+  description: 'Permite editar facturas existentes'
+  restrict access: false
+
+facturas.delete:
+  title: 'Eliminar facturas'
+  description: 'Permite eliminar facturas'
+  restrict access: false

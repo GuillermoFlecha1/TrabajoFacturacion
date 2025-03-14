@@ -1,0 +1,10 @@
+name: 'Facturas'
+type: module
+description: 'Módulo personalizado para gestionar facturas.'
+core_version_requirement: ^10 || ^11
+package: Custom
+dependencies:
+  - drupal:field
+  - drupal:text
+  - drupal:user
+  - drupal:producto
