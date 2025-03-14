@@ -1,0 +1,39 @@
+facturas.add_form:
+  path: '/admin/facturas/add'
+  defaults:
+    _entity_form: 'facturas.add'
+    _title: 'Añadir Impuesto'
+  requirements:
+    _permission: 'facturas.add'
+
+facturas.edit_form:
+  path: '/admin/facturas/{facturas}/edit'
+  defaults:
+    _entity_form: 'facturas.edit'
+    _title: 'Editar Facturas'
+  requirements:
+    _permission: 'facturas.update'
+
+facturas.delete_form:
+  path: '/admin/facturas/{facturas}/delete'
+  defaults:
+    _entity_form: 'facturas.delete'
+    _title: 'Eliminar Facturas'
+  requirements:
+    _permission: 'facturas.delete'
+
+entity.facturas.canonical:
+  path: '/admin/facturas/{facturas}'
+  defaults:
+    _entity_view: 'facturas.full'
+    _title: 'Visualizar Facturas'
+  requirements:
+    _permission: 'facturas.view'
+
+entity.facturas.collection:
+  path: '/admin/facturas'
+  defaults:
+    _entity_list: 'facturas'
+    _title: 'Lista de Facturas'
+  requirements:
+    _permission: 'facturas.view'
