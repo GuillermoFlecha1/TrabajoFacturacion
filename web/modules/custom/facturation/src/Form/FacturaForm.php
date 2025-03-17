@@ -16,7 +16,7 @@ class FacturaForm extends ContentEntityForm {
   public function buildForm(array $form, FormStateInterface $form_state) {
     // Obtén el formulario base.
     $form = parent::buildForm($form, $form_state);
-
+/*
     // --- Número de Pedido ---
     if ($this->entity->isNew()) {
       // Generar un número de pedido aleatorio.
@@ -51,42 +51,8 @@ class FacturaForm extends ContentEntityForm {
         '#markup' => $this->entity->get('num_pedido')->value,
       ];
     }
+*/
 
-    // --- Fecha de Creación ---
-    $today = date('Y-m-d');
-    if ($this->entity->isNew()) {
-      $form['fecha_creacion'] = [
-        '#type' => 'date',
-        '#title' => $this->t('Fecha de Creación'),
-        '#default_value' => $today,
-        '#required' => TRUE,
-      ];
-    } else {
-      $form['fecha_creacion'] = [
-        '#type' => 'date',
-        '#title' => $this->t('Fecha de Creación'),
-        '#default_value' => date('Y-m-d', $this->entity->get('fecha_creacion')->value),
-        '#required' => TRUE,
-      ];
-    }
-
-    // --- Fecha de Vencimiento ---
-    $default_vencimiento = date('Y-m-d', strtotime('+4 years', strtotime($today)));
-    if ($this->entity->isNew()) {
-      $form['fecha_vencimiento'] = [
-        '#type' => 'date',
-        '#title' => $this->t('Fecha de Vencimiento'),
-        '#default_value' => $default_vencimiento,
-        '#required' => TRUE,
-      ];
-    } else {
-      $form['fecha_vencimiento'] = [
-        '#type' => 'date',
-        '#title' => $this->t('Fecha de Vencimiento'),
-        '#default_value' => date('Y-m-d', $this->entity->get('fecha_vencimiento')->value),
-        '#required' => TRUE,
-      ];
-    }
     // Prepara el valor por defecto (si es edición).
     $default_value_User = '';
     if (!$this->entity->isNew() && !$this->entity->get('user_id')->isEmpty()) {
@@ -138,17 +104,9 @@ class FacturaForm extends ContentEntityForm {
 
     // --- Cantidad ---
     if (isset($form['cantidad'])) {
-      $form['cantidad']['#type'] = 'number';
-      $form['cantidad']['#title'] = $this->t('Cantidad');
-      $form['cantidad']['#required'] = TRUE;
-    } else {
-      $form['cantidad'] = [
-        '#type' => 'number',
-        '#title' => $this->t('Cantidad'),
-        '#required' => TRUE,
-      ];
+      $form['cantidad']['#element_validate'][] = [$this, 'validateCantidad'];
     }
-
+/*
     // --- Total Final ---
     $total_final = $this->entity->isNew() ? $this->t('Se calculará automáticamente') : $this->entity->get('total_final')->value;
     $form['total_final'] = [
@@ -156,45 +114,82 @@ class FacturaForm extends ContentEntityForm {
       '#title' => $this->t('Total Final'),
       '#markup' => $total_final,
     ];
-
+*/
     return $form;
+  }
+
+  /**
+   * Validación del campo cantidad.
+   */
+  public function validateCantidad($element, FormStateInterface $form_state, $form) {
+    $cantidad = $form_state->getValue('cantidad');
+    if (is_array($cantidad)) {
+      if (isset($cantidad[0]['value'])) {
+        $cantidad = $cantidad[0]['value'];
+      }
+      elseif (isset($cantidad['value'])) {
+        $cantidad = $cantidad['value'];
+      }
+    }
+    $cantidad_numeric = floatval($cantidad);
+    if ($cantidad_numeric < 1) {
+      $form_state->setError($element, t('La cantidad debe ser mayor que 0'));
+    }
   }
 
   /**
    * Validación del formulario.
    */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
+ /* public function validateForm(array &$form, FormStateInterface $form_state) {
     parent::validateForm($form, $form_state);
 
     $fecha_creacion = $form_state->getValue('fecha_creacion');
     $fecha_vencimiento = $form_state->getValue('fecha_vencimiento');
-
+    
     if (strtotime($fecha_vencimiento) <= strtotime($fecha_creacion)) {
       $form_state->setErrorByName('fecha_vencimiento', $this->t('La fecha de vencimiento debe ser posterior a la fecha de creación.'));
     }
   }
-
+*/
   /**
-   * Guardado del formulario.
-   */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
-    parent::submitForm($form, $form_state);
-    
-    $user_value = $form_state->getValue('user_id');
-    $producto_value = $form_state->getValue('producto_id');
-    if (!empty($producto_value)) {
-      // Asigna el valor directamente a la entidad.
-      $this->entity->set('producto_id', $producto_value);
-    }
-    if (!empty($user_value)) {
-      // Asigna el valor directamente a la entidad.
-      $this->entity->set('user_id', $user_value);
-    }
-    
-    // Guarda la entidad.
-    $this->entity->save();
-    \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada.'));
+ * Guardado del formulario.
+ */
+public function submitForm(array &$form, FormStateInterface $form_state) {
+  parent::submitForm($form, $form_state);
+  
+  // Obtener los valores del formulario.
+  $user_value = $form_state->getValue('user_id');
+  $producto_value = $form_state->getValue('producto_id');
+  /*
+  $fecha_creacion = $form_state->getValue('fecha_creacion'); // Formato Y-m-d.
+  $fecha_vencimiento = $form_state->getValue('fecha_vencimiento'); // Formato Y-m-d.
+
+  // Convertir las fechas al formato timestamp UNIX.
+  $timestamp_creacion = strtotime($fecha_creacion);
+  $timestamp_vencimiento = strtotime($fecha_vencimiento);
+*/
+  // Asignar los valores a la entidad.
+  if (!empty($producto_value)) {
+    $this->entity->set('producto_id', $producto_value);
   }
+  if (!empty($user_value)) {
+    $this->entity->set('user_id', $user_value);
+  }
+/*
+  // Asignar las fechas convertidas a la entidad.
+  $this->entity->set('fecha_creacion', $timestamp_creacion);
+  $this->entity->set('fecha_vencimiento', $timestamp_vencimiento);
+
+  // Asignar el total final (ejemplo fijo).
+  $this->entity->set('total_final', 100.00);
+  */
+  // Guardar la entidad.
+  $this->entity->save();
+
+  // Mensaje de confirmación.
+  \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada.'));
+}
+
 
   /**
    * Obtiene las opciones para el campo select de usuarios.
@@ -219,4 +214,5 @@ class FacturaForm extends ContentEntityForm {
     }
     return $options;
   }
+
 }

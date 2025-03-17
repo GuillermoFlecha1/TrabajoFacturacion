@@ -80,11 +80,14 @@ class Facturas extends ContentEntityBase {
         'type' => 'string',
         'weight' => -1, // No se muestra en la vista
       ]);
-
+      
     // Fecha de Creación.
-    $fields['fecha_creacion'] = BaseFieldDefinition::create('created')
+    $fields['fecha_creacion'] = BaseFieldDefinition::create('datetime')
       ->setLabel(t('Fecha de Creación'))
       ->setDescription(t('La fecha en que se creó la factura.'))
+      ->setSetting('datetime_type', 'date')
+      ->setRequired(TRUE)
+      ->setDefaultValueCallback('Drupal\\facturation\\Entity\\Facturas::getCurrentDate')
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'datetime_default',
@@ -98,31 +101,28 @@ class Facturas extends ContentEntityBase {
       ->setDisplayConfigurable('view', TRUE);
 
     // Número de Pedido (único, generado aleatoriamente).
-    $fields['num_pedido'] = BaseFieldDefinition::create('string')
+    $fields['num_pedido'] = BaseFieldDefinition::create('integer')
       ->setLabel(t('Número de Pedido'))
       ->setDescription(t('Número de pedido único generado aleatoriamente.'))
       ->setRequired(TRUE)
-      ->setSettings([
-        'max_length' => 50,
-        'text_processing' => 0,
-      ])
       ->setDisplayOptions('view', [
         'label' => 'above',
-        'type' => 'string',
+        'type' => 'number',
         'weight' => 1, // Orden en la vista
       ])
       ->setDisplayOptions('form', [
-        'type' => 'string_textfield',
+        'type' => 'number',
         'weight' => 1, // Orden en el formulario
       ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
-    // Fecha de Vencimiento.
+    //Fecha de Vencimiento.
     $fields['fecha_vencimiento'] = BaseFieldDefinition::create('datetime')
       ->setLabel(t('Fecha de Vencimiento'))
       ->setDescription(t('La fecha de vencimiento de la factura.'))
       ->setRequired(TRUE)
+      ->setDefaultValueCallback('Drupal\\facturation\\Entity\\Facturas::defaultFechaVencimiento')
       ->setSetting('datetime_type', 'date')
       ->setDisplayOptions('view', [
         'label' => 'above',
@@ -144,7 +144,7 @@ class Facturas extends ContentEntityBase {
       ->setSetting('target_type', 'user')
       ->setDisplayOptions('view', [
         'label' => 'above',
-        'type' => 'author',
+        'type' => 'entity_reference_label',
         'weight' => 4, // Orden en la vista
       ])
       ->setDisplayOptions('form', [
@@ -220,4 +220,19 @@ class Facturas extends ContentEntityBase {
 
     return $fields;
   }
+  /**
+ * Callback para definir el valor predeterminado de fecha de vencimiento.
+ *
+ * @return array
+ *   Valor predeterminado para el campo.
+ */
+public static function defaultFechaVencimiento() {
+  $today = new \DateTime();
+  $today->modify('+4 years'); // Incrementar 4 años desde hoy.
+  return $today->format('Y-m-d');
+}
+public static function getCurrentDate() {
+  return date('Y-m-d');
+}
+
 }

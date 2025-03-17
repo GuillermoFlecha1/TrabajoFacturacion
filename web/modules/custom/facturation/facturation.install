@@ -24,22 +24,19 @@ function facturas_schema() {
         'not null' => TRUE,
       ],
       'fecha_creacion' => [
-        'description' => 'Fecha de creación de la factura (almacenada como timestamp).',
-        'type' => 'int',
+        'description' => 'Fecha de creación de la factura.',
+        'type' => 'date', 
         'not null' => TRUE,
-        'default' => 0,
       ],
       'num_pedido' => [
         'description' => 'Número de pedido único generado aleatoriamente.',
-        'type' => 'varchar',
-        'length' => 50,
+        'type' => 'int',
         'not null' => TRUE,
       ],
       'fecha_vencimiento' => [
-        'description' => 'Fecha de vencimiento de la factura (almacenada como timestamp).',
-        'type' => 'int',
+        'description' => 'Fecha de vencimiento de la factura.',
+        'type' => 'date', 
         'not null' => TRUE,
-        'default' => 0,
       ],
       'cantidad' => [
         'description' => 'Cantidad de productos en la factura.',

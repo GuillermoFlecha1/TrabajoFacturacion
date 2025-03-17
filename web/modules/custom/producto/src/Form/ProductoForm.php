@@ -15,10 +15,6 @@ class ProductoForm extends ContentEntityForm {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
-
-    // Asegúrate de que el campo 'impuesto_id' esté presente
-    // Eliminamos el unset ya que no queremos eliminar el campo
-    // unset($form['impuesto_id']);  // Eliminar esta línea
     
     // Validación personalizada para otros campos
     if (isset($form['precio'])) {
