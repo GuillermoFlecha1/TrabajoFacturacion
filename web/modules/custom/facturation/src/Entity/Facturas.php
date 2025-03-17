@@ -116,7 +116,30 @@ class Facturas extends ContentEntityBase {
       ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
-
+      /*
+    // Número de Pedido (único, generado aleatoriamente).
+    $fields['num_pedido'] = BaseFieldDefinition::create('integer')
+    ->setLabel(t('Número de Pedido'))
+    ->setDescription(t('Número de pedido único generado aleatoriamente.'))
+    ->setRequired(TRUE)
+    ->setDisplayOptions('view', [
+      'label' => 'above',
+      'type' => 'number',
+      'weight' => 1, // Orden en la vista
+      'settings' => [
+        'readonly' => TRUE, // Mostrarlo como solo lectura en la vista.
+      ],
+    ])
+    ->setDisplayOptions('form', [
+      'type' => 'number',
+      'weight' => 1, // Orden en el formulario
+      'settings' => [
+        'readonly' => TRUE, // Evitar que el número se pueda editar en el formulario.
+      ],
+    ])
+    ->setDisplayConfigurable('form', TRUE)
+    ->setDisplayConfigurable('view', TRUE);
+    */
     //Fecha de Vencimiento.
     $fields['fecha_vencimiento'] = BaseFieldDefinition::create('datetime')
       ->setLabel(t('Fecha de Vencimiento'))

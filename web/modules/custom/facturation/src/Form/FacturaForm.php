@@ -16,43 +16,26 @@ class FacturaForm extends ContentEntityForm {
   public function buildForm(array $form, FormStateInterface $form_state) {
     // Obtén el formulario base.
     $form = parent::buildForm($form, $form_state);
-/*
-    // --- Número de Pedido ---
+    /*
+    // --- Número de Pedido (único, generado aleatoriamente) ---
     if ($this->entity->isNew()) {
-      // Generar un número de pedido aleatorio.
-      $num_pedido = mt_rand(10000000, 99999999);
-
-      // Verificar si el número de pedido ya existe en la base de datos.
-      $query = \Drupal::entityQuery('facturas')
-        ->condition('num_pedido', $num_pedido)
-        ->range(0, 1) // Solo necesitamos verificar si existe uno.
-        ->accessCheck(FALSE); // Desactiva la verificación de acceso
-
-      // Si ya existe, generar un nuevo número de pedido.
-      while ($query->execute()) {
-        $num_pedido = mt_rand(10000000, 99999999);
-        $query->condition('num_pedido', $num_pedido); // Actualizar la condición de la consulta.
-      }
-
-      // Asignar el número de pedido único a la entidad.
-      $this->entity->set('num_pedido', $num_pedido);
-
-      // Mostrar el número de pedido en el formulario.
-      $form['num_pedido'] = [
-        '#type' => 'item',
-        '#title' => $this->t('Número de Pedido'),
-        '#markup' => $num_pedido,
-      ];
+      // Generamos el número aleatorio entre 100000 y 999999.
+      $num_pedido_aleatorio = rand(100000, 999999);
+    
+      // Asignamos el número aleatorio a la entidad (usamos set).
+      $this->entity->set('num_pedido', $num_pedido_aleatorio);
     } else {
-      // Si la entidad no es nueva, mostrar el número de pedido actual.
-      $form['num_pedido'] = [
-        '#type' => 'item',
-        '#title' => $this->t('Número de Pedido'),
-        '#markup' => $this->entity->get('num_pedido')->value,
-      ];
+      // Si no es nueva, obtenemos el valor de num_pedido de la entidad (usamos get).
+      $num_pedido_aleatorio = $this->entity->get('num_pedido')->value;
     }
+    $form['num_pedido'] = [
+      '#type' => 'textfield',  // Cambiado a 'textfield' para mostrarlo como texto no editable.
+      '#title' => $this->t('Número de Pedido'),
+      '#default_value' => $num_pedido_aleatorio,  // El valor predeterminado será el número aleatorio.
+      '#disabled' => TRUE,  // Evita que se pueda editar.
+      '#required' => TRUE,
+    ];
 */
-
     // Prepara el valor por defecto (si es edición).
     $default_value_User = '';
     if (!$this->entity->isNew() && !$this->entity->get('user_id')->isEmpty()) {
@@ -101,20 +84,16 @@ class FacturaForm extends ContentEntityForm {
         '#required' => TRUE,
       ];
     }
+    // --- Fecha de vencimiento ---
+    if (isset($form['fecha_vencimiento'])) {
+      $form['fecha_vencimiento']['#element_validate'][] = [$this, 'validateFechaVencimiento'];
+    }
 
     // --- Cantidad ---
     if (isset($form['cantidad'])) {
       $form['cantidad']['#element_validate'][] = [$this, 'validateCantidad'];
     }
-/*
-    // --- Total Final ---
-    $total_final = $this->entity->isNew() ? $this->t('Se calculará automáticamente') : $this->entity->get('total_final')->value;
-    $form['total_final'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Total Final'),
-      '#markup' => $total_final,
-    ];
-*/
+
     return $form;
   }
 
@@ -136,21 +115,32 @@ class FacturaForm extends ContentEntityForm {
       $form_state->setError($element, t('La cantidad debe ser mayor que 0'));
     }
   }
-
   /**
-   * Validación del formulario.
+   * Validación del campo fecha_vencimiento.
    */
- /* public function validateForm(array &$form, FormStateInterface $form_state) {
-    parent::validateForm($form, $form_state);
-
+  public function validateFechaVencimiento($element, FormStateInterface $form_state, $form) {
     $fecha_creacion = $form_state->getValue('fecha_creacion');
     $fecha_vencimiento = $form_state->getValue('fecha_vencimiento');
-    
-    if (strtotime($fecha_vencimiento) <= strtotime($fecha_creacion)) {
-      $form_state->setErrorByName('fecha_vencimiento', $this->t('La fecha de vencimiento debe ser posterior a la fecha de creación.'));
+
+    // Asegúrate de obtener el valor de las fechas correctamente
+    if (is_array($fecha_creacion)) {
+      $fecha_creacion = isset($fecha_creacion[0]['value']) ? $fecha_creacion[0]['value'] : $fecha_creacion['value'];
+    }
+    if (is_array($fecha_vencimiento)) {
+      $fecha_vencimiento = isset($fecha_vencimiento[0]['value']) ? $fecha_vencimiento[0]['value'] : $fecha_vencimiento['value'];
+    }
+
+    // Validar que la fecha de vencimiento sea válida
+    if (strtotime($fecha_vencimiento) === false) {
+      $form_state->setError($element, t('La fecha de vencimiento no es válida.'));
+    }
+    // Validar que la fecha de vencimiento sea posterior a la fecha de creación
+    elseif (strtotime($fecha_vencimiento) <= strtotime($fecha_creacion)) {
+      $form_state->setError($element, t('La fecha de vencimiento debe ser posterior a la fecha de creación.'));
     }
   }
-*/
+
+
   /**
  * Guardado del formulario.
  */
@@ -160,14 +150,7 @@ public function submitForm(array &$form, FormStateInterface $form_state) {
   // Obtener los valores del formulario.
   $user_value = $form_state->getValue('user_id');
   $producto_value = $form_state->getValue('producto_id');
-  /*
-  $fecha_creacion = $form_state->getValue('fecha_creacion'); // Formato Y-m-d.
-  $fecha_vencimiento = $form_state->getValue('fecha_vencimiento'); // Formato Y-m-d.
 
-  // Convertir las fechas al formato timestamp UNIX.
-  $timestamp_creacion = strtotime($fecha_creacion);
-  $timestamp_vencimiento = strtotime($fecha_vencimiento);
-*/
   // Asignar los valores a la entidad.
   if (!empty($producto_value)) {
     $this->entity->set('producto_id', $producto_value);
@@ -175,14 +158,10 @@ public function submitForm(array &$form, FormStateInterface $form_state) {
   if (!empty($user_value)) {
     $this->entity->set('user_id', $user_value);
   }
-/*
-  // Asignar las fechas convertidas a la entidad.
-  $this->entity->set('fecha_creacion', $timestamp_creacion);
-  $this->entity->set('fecha_vencimiento', $timestamp_vencimiento);
+  $num_pedido_aleatorio = rand(100000, 999999);  // Número aleatorio entre 100000 y 999999
 
-  // Asignar el total final (ejemplo fijo).
-  $this->entity->set('total_final', 100.00);
-  */
+  // Asignar el número de pedido aleatorio a la entidad.
+  $this->entity->set('num_pedido', $num_pedido_aleatorio);
   // Guardar la entidad.
   $this->entity->save();
 
