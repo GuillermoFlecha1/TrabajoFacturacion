@@ -1,0 +1,86 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the facturas module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function facturas_schema() {
+  $schema['facturas'] = [
+    'description' => 'Tabla que almacena las facturas.',
+    'fields' => [
+      'id' => [
+        'description' => 'Número de factura (ID autoincremental).',
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'uuid' => [
+        'description' => 'UUID de la factura.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ],
+      'fecha_creacion' => [
+        'description' => 'Fecha de creación de la factura.',
+        'type' => 'date', 
+        'not null' => TRUE,
+      ],
+      'num_pedido' => [
+        'description' => 'Número de pedido único generado aleatoriamente.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'fecha_vencimiento' => [
+        'description' => 'Fecha de vencimiento de la factura.',
+        'type' => 'date', 
+        'not null' => TRUE,
+      ],
+      'cantidad' => [
+        'description' => 'Cantidad de productos en la factura.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'user_id' => [
+        'description' => 'ID del usuario asociado a la factura.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'producto_id' => [
+        'description' => 'ID del producto asociado a la factura.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'total_final' => [
+        'description' => 'Total final de la factura.',
+        'type' => 'numeric',
+        'precision' => 10,
+        'scale' => 2,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uuid' => ['uuid'],
+      'num_pedido' => ['num_pedido'],
+    ],
+    'indexes' => [
+      'user_id' => ['user_id'],
+      'producto_id' => ['producto_id'],
+    ],
+    'foreign keys' => [
+      'user_id' => [
+        'table' => 'users_field_data',
+        'columns' => ['user_id' => 'uid'],
+      ],
+      'producto_id' => [
+        'table' => 'producto',
+        'columns' => ['producto_id' => 'id'],
+      ],
+    ],
+  ];
+
+  return $schema;
+}
