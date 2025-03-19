@@ -10,97 +10,128 @@ use Drupal\Core\Form\FormStateInterface;
  */
 class FacturaForm extends ContentEntityForm {
 
-  /**
-   * Construcción del formulario.
-   */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    // Obtén el formulario base.
     $form = parent::buildForm($form, $form_state);
-    /*
-    // --- Número de Pedido (único, generado aleatoriamente) ---
-    if ($this->entity->isNew()) {
-      // Generamos el número aleatorio entre 100000 y 999999.
-      $num_pedido_aleatorio = rand(100000, 999999);
-    
-      // Asignamos el número aleatorio a la entidad (usamos set).
-      $this->entity->set('num_pedido', $num_pedido_aleatorio);
-    } else {
-      // Si no es nueva, obtenemos el valor de num_pedido de la entidad (usamos get).
-      $num_pedido_aleatorio = $this->entity->get('num_pedido')->value;
+/*
+    $form['num_pedido']['#weight'] = 1;
+    $form['fecha_creacion']['#weight'] = 2;
+    $form['fecha_vencimiento']['#weight'] = 3;
+    $form['user_id']['#weight'] = 4;
+    $form['producto_cantidad_container']['#weight'] = 5;
+    $form['productos_seleccionados']['#weight'] = 6;
+    $form['total_final']['#weight'] = 7;
+*/
+    // Generar número de pedido si es necesario
+    $num_pedido_actual = $this->entity->get('num_pedido')?->value;
+    if (empty($num_pedido_actual) && !$form_state->has('num_pedido_aleatorio')) {
+      do {
+        $num_pedido_actual = rand(10000000, 99999999);
+      } while (\Drupal::entityQuery('facturas')->condition('num_pedido', $num_pedido_actual)->range(0, 1)->accessCheck(FALSE)->execute());
+      $form_state->set('num_pedido_aleatorio', $num_pedido_actual);
+      $this->entity->set('num_pedido', $num_pedido_actual);
     }
+
     $form['num_pedido'] = [
-      '#type' => 'textfield',  // Cambiado a 'textfield' para mostrarlo como texto no editable.
-      '#title' => $this->t('Número de Pedido'),
-      '#default_value' => $num_pedido_aleatorio,  // El valor predeterminado será el número aleatorio.
-      '#disabled' => TRUE,  // Evita que se pueda editar.
+      '#type' => 'markup',
+      '#markup' => $this->t('<b>Número de pedido único:</b> @num_pedido', ['@num_pedido' => $num_pedido_actual]),
+    ];
+
+   // Prepara el valor por defecto (si es edición).
+   $default_value_User = '';
+   if (!$this->entity->isNew() && !$this->entity->get('user_id')->isEmpty()) {
+     // Para un campo de referencia de valor único, obtenemos el primer item.
+     $default_value_User = $this->entity->get('user_id')->first()->getValue()['target_id'];
+   }
+   // --- Usuario (user_id) ---
+   if (isset($form['user_id']['widget'][0]['target_id'])) {
+     $form['user_id']['widget'][0]['target_id'] = [
+       '#type' => 'select',
+       '#title' => $this->t('Usuario'),
+       '#options' => $this->getUserOptions(),
+       '#default_value' => $default_value_User,
+       '#required' => TRUE,
+     ];
+   } else {
+     $form['user_id'] = [
+       '#type' => 'select',
+       '#title' => $this->t('Usuario'),
+       '#options' => $this->getUserOptions(),
+       '#default_value' => $default_value_User,
+       '#required' => TRUE,
+     ];
+   }
+    
+    // Inicializar productos seleccionados
+    $productos_seleccionados = $form_state->get('productos_seleccionados') ?? [];
+    $form_state->set('productos_seleccionados', $productos_seleccionados);
+
+    // Contenedor para seleccionar productos y cantidad
+    $form['producto_cantidad_container'] = [
+      '#type' => 'container',
+      '#attributes' => ['style' => 'display: flex; align-items: center; gap: 10px;'],
+    ];
+
+    $form['producto_cantidad_container']['producto_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Producto'),
+      '#options' => $this->getProductoOptions(),
       '#required' => TRUE,
     ];
-*/
-    // Prepara el valor por defecto (si es edición).
-    $default_value_User = '';
-    if (!$this->entity->isNew() && !$this->entity->get('user_id')->isEmpty()) {
-      // Para un campo de referencia de valor único, obtenemos el primer item.
-      $default_value_User = $this->entity->get('user_id')->first()->getValue()['target_id'];
-    }
-    // --- Usuario (user_id) ---
-    if (isset($form['user_id']['widget'][0]['target_id'])) {
-      $form['user_id']['widget'][0]['target_id'] = [
-        '#type' => 'select',
-        '#title' => $this->t('Usuario'),
-        '#options' => $this->getUserOptions(),
-        '#default_value' => $default_value_User,
-        '#required' => TRUE,
+
+    $form['producto_cantidad_container']['cantidad'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Cantidad'),
+      '#min' => 1,
+      '#default_value' => 1,
+      '#required' => TRUE,
+    ];
+
+    $form['producto_cantidad_container']['agregar'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Añadir'),
+      '#submit' => ['::agregarProducto'],
+      '#ajax' => [
+        'callback' => '::actualizarTablaProductos',
+        'wrapper' => 'tabla-productos',
+      ],
+      '#attributes' => ['style' => 'margin-left: auto;'],
+    ];
+
+    // Tabla de productos seleccionados
+    $form['productos_seleccionados'] = [
+      '#type' => 'container',
+      '#prefix' => '<div id="tabla-productos">',
+      '#suffix' => '</div>',
+    ];
+
+    if (!empty($productos_seleccionados)) {
+      $form['productos_seleccionados']['tabla'] = [
+        '#type' => 'table',
+        '#header' => [$this->t('Producto'), $this->t('Cantidad'), $this->t('Precio Unitario'), $this->t('Total')],
+        '#rows' => [],
       ];
-    } else {
-      $form['user_id'] = [
-        '#type' => 'select',
-        '#title' => $this->t('Usuario'),
-        '#options' => $this->getUserOptions(),
-        '#default_value' => $default_value_User,
-        '#required' => TRUE,
-      ];
+
+      foreach ($productos_seleccionados as $producto) {
+        $form['productos_seleccionados']['tabla']['#rows'][] = [
+          'nombre' => $producto['nombre'],
+          'cantidad' => $producto['cantidad'],
+          'precio_unitario' => $producto['precio'],
+          'total' => $producto['cantidad'] * $producto['precio'],
+        ];
+      }
     }
-    // Prepara el valor por defecto (si es edición).
-    $default_value_Product = '';
-    if (!$this->entity->isNew() && !$this->entity->get('producto_id')->isEmpty()) {
-      // Para un campo de referencia de valor único, obtenemos el primer item.
-      $default_value_Product = $this->entity->get('producto_id')->first()->getValue()['target_id'];
-    }
-    // --- Producto (producto_id) ---
-    if (isset($form['producto_id']['widget'][0]['target_id'])) {
-      $form['producto_id']['widget'][0]['target_id'] = [
-        '#type' => 'select',
-        '#title' => $this->t('Producto'),
-        '#options' => $this->getProductoOptions(),
-        '#default_value' => $default_value_Product,
-        '#required' => TRUE,
-      ];
-    } else {
-      $form['producto_id'] = [
-        '#type' => 'select',
-        '#title' => $this->t('Producto'),
-        '#options' => $this->getProductoOptions(),
-        '#default_value' => $default_value_Product,
-        '#required' => TRUE,
-      ];
-    }
+
     // --- Fecha de vencimiento ---
     if (isset($form['fecha_vencimiento'])) {
       $form['fecha_vencimiento']['#element_validate'][] = [$this, 'validateFechaVencimiento'];
     }
-
-    // --- Cantidad ---
-    if (isset($form['cantidad'])) {
-      $form['cantidad']['#element_validate'][] = [$this, 'validateCantidad'];
-    }
-
     return $form;
   }
 
   /**
    * Validación del campo cantidad.
    */
-  public function validateCantidad($element, FormStateInterface $form_state, $form) {
+    public function validateCantidad($element, FormStateInterface $form_state, $form) {
     $cantidad = $form_state->getValue('cantidad');
     if (is_array($cantidad)) {
       if (isset($cantidad[0]['value'])) {
@@ -140,39 +171,61 @@ class FacturaForm extends ContentEntityForm {
     }
   }
 
-
-  /**
- * Guardado del formulario.
- */
-public function submitForm(array &$form, FormStateInterface $form_state) {
-  parent::submitForm($form, $form_state);
+  public function agregarProducto(array &$form, FormStateInterface $form_state) {
+    $productos_seleccionados = $form_state->get('productos_seleccionados');
+    if (!is_array($productos_seleccionados)) {
+      $productos_seleccionados = [];
+    }
   
-  // Obtener los valores del formulario.
-  $user_value = $form_state->getValue('user_id');
-  $producto_value = $form_state->getValue('producto_id');
-
-  // Asignar los valores a la entidad.
-  if (!empty($producto_value)) {
-    $this->entity->set('producto_id', $producto_value);
+    $producto_id = $form_state->getValue(['producto_cantidad_container', 'producto_id']);
+    $cantidad = $form_state->getValue(['producto_cantidad_container', 'cantidad']);
+  
+    if (!empty($producto_id) && !empty($cantidad) && $cantidad > 0) {
+      $productos_seleccionados[] = [
+        'producto_id' => $producto_id,
+        'nombre' => $this->getProductoOptions()[$producto_id] ?? 'Desconocido',
+        'cantidad' => $cantidad,
+        'precio' => $this->getProductoPrecio($producto_id),
+      ];
+    }
+  
+    $form_state->set('productos_seleccionados', $productos_seleccionados);
+    $form_state->setRebuild(TRUE);
   }
-  if (!empty($user_value)) {
-    $this->entity->set('user_id', $user_value);
+  private function getProductoPrecio($producto_id) {
+    $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
+    return $producto ? $producto->get('precio')->value : 0;
   }
-  $num_pedido_aleatorio = rand(100000, 999999);  // Número aleatorio entre 100000 y 999999
 
-  // Asignar el número de pedido aleatorio a la entidad.
-  $this->entity->set('num_pedido', $num_pedido_aleatorio);
-  // Guardar la entidad.
-  $this->entity->save();
+  public function actualizarTablaProductos(array &$form, FormStateInterface $form_state) {
+    return $form['productos_seleccionados'];
+  }
 
-  // Mensaje de confirmación.
-  \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada.'));
-}
+  public function submitForm(array &$form, FormStateInterface $form_state) {
+    parent::submitForm($form, $form_state);
+    
+    //$productos = $form_state->get('productos_seleccionados') ?? [];
+    $num_pedido_aleatorio = $form_state->get('num_pedido_aleatorio');
 
+    // Obtener los valores del formulario.
+    $user_value = $form_state->getValue('user_id');
+    //$producto_value = $form_state->getValue('producto_id');
+    if (!empty($num_pedido_aleatorio)) {
+      $this->entity->set('num_pedido', $num_pedido_aleatorio);
+    }
+    /*if (!empty($producto_value)) {
+      $this->entity->set('producto_id', $producto_value);
+    }*/
+    if (!empty($user_value)) {
+      $this->entity->set('user_id', $user_value);
+    }
+    $num_pedido_aleatorio = rand(100000, 999999); 
+    $this->entity->set('num_pedido', $num_pedido_aleatorio);
+    $this->entity->save();
 
-  /**
-   * Obtiene las opciones para el campo select de usuarios.
-   */
+    \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada con los productos.'));
+  }
+
   private function getUserOptions() {
     $options = [];
     $users = \Drupal::entityTypeManager()->getStorage('user')->loadMultiple();
@@ -182,9 +235,6 @@ public function submitForm(array &$form, FormStateInterface $form_state) {
     return $options;
   }
 
-  /**
-   * Obtiene las opciones para el campo select de productos.
-   */
   private function getProductoOptions() {
     $options = [];
     $productos = \Drupal::entityTypeManager()->getStorage('producto')->loadMultiple();
@@ -193,5 +243,5 @@ public function submitForm(array &$form, FormStateInterface $form_state) {
     }
     return $options;
   }
-
+    
 }

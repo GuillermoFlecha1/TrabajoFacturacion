@@ -20,7 +20,7 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *   },
  *   handlers = {
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
- *     "list_builder" = "Drupal\facturation\FacturasListBuilder",
+ *     "list_builder" = "Drupal\facturation\Entity\FacturasListBuilder",
  *     "form" = {
  *       "default" = "Drupal\facturation\Form\FacturaForm",
  *       "add" = "Drupal\facturation\Form\FacturaForm",
@@ -99,24 +99,7 @@ class Facturas extends ContentEntityBase {
       ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
-
-    // Número de Pedido (único, generado aleatoriamente).
-    $fields['num_pedido'] = BaseFieldDefinition::create('integer')
-      ->setLabel(t('Número de Pedido'))
-      ->setDescription(t('Número de pedido único generado aleatoriamente.'))
-      ->setRequired(TRUE)
-      ->setDisplayOptions('view', [
-        'label' => 'above',
-        'type' => 'number',
-        'weight' => 1, // Orden en la vista
-      ])
-      ->setDisplayOptions('form', [
-        'type' => 'number',
-        'weight' => 1, // Orden en el formulario
-      ])
-      ->setDisplayConfigurable('form', TRUE)
-      ->setDisplayConfigurable('view', TRUE);
-      /*
+  
     // Número de Pedido (único, generado aleatoriamente).
     $fields['num_pedido'] = BaseFieldDefinition::create('integer')
     ->setLabel(t('Número de Pedido'))
@@ -139,7 +122,7 @@ class Facturas extends ContentEntityBase {
     ])
     ->setDisplayConfigurable('form', TRUE)
     ->setDisplayConfigurable('view', TRUE);
-    */
+    
     //Fecha de Vencimiento.
     $fields['fecha_vencimiento'] = BaseFieldDefinition::create('datetime')
       ->setLabel(t('Fecha de Vencimiento'))
@@ -193,16 +176,6 @@ class Facturas extends ContentEntityBase {
         'type' => 'entity_reference_label',
         'weight' => 5, // Orden en la vista
       ])
-      ->setDisplayOptions('form', [
-        'type' => 'entity_reference_autocomplete',
-        'weight' => 5, // Orden en el formulario
-        'settings' => [
-          'match_operator' => 'CONTAINS',
-          'size' => 60,
-          'placeholder' => t('Seleccione un producto'),
-        ],
-      ])
-      ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
     // Cantidad.
@@ -215,11 +188,6 @@ class Facturas extends ContentEntityBase {
         'type' => 'number',
         'weight' => 6, // Orden en la vista
       ])
-      ->setDisplayOptions('form', [
-        'type' => 'number',
-        'weight' => 6, // Orden en el formulario
-      ])
-      ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
     // Total Final.
