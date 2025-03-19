@@ -202,11 +202,6 @@ class Facturas extends ContentEntityBase {
         'type' => 'number_decimal',
         'weight' => 7, // Orden en la vista
       ])
-      ->setDisplayOptions('form', [
-        'type' => 'number',
-        'weight' => 7, // Orden en el formulario
-      ])
-      ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
     return $fields;

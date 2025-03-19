@@ -82,20 +82,32 @@ class FacturaForm extends ContentEntityForm {
     ];
 
     // Mostrar los productos agregados
-    $lista_productos = '<table border="1"><tr><th>Producto</th><th>Cantidad</th><th>Precio (€)</th><th>Importe (€)</th></tr>';
+    $lista_productos = '<table border="1">
+      <tr><th>Producto</th><th>Cantidad</th><th>Precio (€)</th><th>Impuesto (%)</th><th>Importe (€)</th></tr>';
+    
     $total_importe = 0;
+    $total_impuesto = 0;
 
     foreach ($productos as $producto) {
+      $importe = $producto['importe'];
+      $impuesto_total_producto = ($importe * $producto['impuesto']) / 100;
+
       $lista_productos .= '<tr>
         <td>' . $producto['producto'] . '</td>
         <td>' . $producto['cantidad'] . '</td>
         <td>' . number_format($producto['precio'], 2) . '</td>
-        <td>' . number_format($producto['importe'], 2) . '</td>
+        <td>' . $producto['impuesto'] . '%</td>
+        <td>' . number_format($importe, 2) . '</td>
       </tr>';
-      $total_importe += $producto['importe'];
+      $total_importe += $importe;
+      $total_impuesto += $impuesto_total_producto;
     }
 
-    $lista_productos .= '<tr><td colspan="3"><b>Total</b></td><td><b>' . number_format($total_importe, 2) . '€</b></td></tr>';
+    $total_final = $total_importe + $total_impuesto;
+
+    $lista_productos .= '<tr><td colspan="4"><b>Total Importe</b></td><td><b>' . number_format($total_importe, 2) . '€</b></td></tr>';
+    $lista_productos .= '<tr><td colspan="4"><b>Total Impuesto</b></td><td><b>' . number_format($total_impuesto, 2) . '€</b></td></tr>';
+    $lista_productos .= '<tr><td colspan="4"><b>Total Final</b></td><td><b>' . number_format($total_final, 2) . '€</b></td></tr>';
     $lista_productos .= '</table>';
 
     $form['productos_agregados'] = [
@@ -164,6 +176,7 @@ class FacturaForm extends ContentEntityForm {
     $productos = $form_state->get('productos') ?? [];
 
     $precio = $this->getProductoPrecio($producto_id);
+    $impuesto = $this->getProductoImpuesto($producto_id);
     $importe = $precio * $cantidad;
 
     // Agregar producto con precio e importe calculado
@@ -171,6 +184,7 @@ class FacturaForm extends ContentEntityForm {
       'producto' => $this->getProductoOptions()[$producto_id],
       'cantidad' => $cantidad,
       'precio' => $precio,
+      'impuesto' => $impuesto,
       'importe' => $importe,
     ];
 
@@ -186,6 +200,20 @@ class FacturaForm extends ContentEntityForm {
 
     // Obtener los valores del formulario.
     $user_value = $form_state->getValue('user_id');
+    $productos = $form_state->get('productos') ?? [];
+
+    $total_importe = 0;
+    $total_impuesto = 0;
+    $cantidad_total = 0;
+
+    // Calcular totales
+    foreach ($productos as $producto) {
+        $total_importe += $producto['importe'];
+        $total_impuesto += ($producto['importe'] * $producto['impuesto']) / 100;
+        $cantidad_total += $producto['cantidad'];
+      }
+
+    $total_final = $total_importe + $total_impuesto;
     
     if (!empty($num_pedido_aleatorio)) {
       $this->entity->set('num_pedido', $num_pedido_aleatorio);
@@ -194,8 +222,14 @@ class FacturaForm extends ContentEntityForm {
     if (!empty($user_value)) {
       $this->entity->set('user_id', $user_value);
     }
+
+    $this->entity->set('cantidad', $cantidad_total);
     $num_pedido_aleatorio = rand(100000, 999999); 
     $this->entity->set('num_pedido', $num_pedido_aleatorio);
+    
+    // Guardar el Total Final en la entidad sin mostrarlo en el formulario
+    $this->entity->set('total_final', $total_final);
+
     $this->entity->save();
 
     \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada con los productos.'));
@@ -224,6 +258,22 @@ class FacturaForm extends ContentEntityForm {
   private function getProductoPrecio($producto_id) {
     $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
     return $producto ? $producto->get('precio')->value : 0;
+  }
+
+  /**
+   * Obtener el Impuesto de un producto.
+   */
+  private function getProductoImpuesto($producto_id) {
+    $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
+    
+    if ($producto && $producto->hasField('impuesto_id')) {
+      $impuesto_id = $producto->get('impuesto_id')->target_id;
+      $impuesto = \Drupal::entityTypeManager()->getStorage('impuestos')->load($impuesto_id);
+      
+      return ($impuesto && $impuesto->hasField('valor')) ? $impuesto->get('valor')->value : 0;
+    }
+
+    return 0;
   }
     
 }
