@@ -12,15 +12,7 @@ class FacturaForm extends ContentEntityForm {
 
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
-/*
-    $form['num_pedido']['#weight'] = 1;
-    $form['fecha_creacion']['#weight'] = 2;
-    $form['fecha_vencimiento']['#weight'] = 3;
-    $form['user_id']['#weight'] = 4;
-    $form['producto_cantidad_container']['#weight'] = 5;
-    $form['productos_seleccionados']['#weight'] = 6;
-    $form['total_final']['#weight'] = 7;
-*/
+
     // Generar número de pedido si es necesario
     $num_pedido_actual = $this->entity->get('num_pedido')?->value;
     if (empty($num_pedido_actual) && !$form_state->has('num_pedido_aleatorio')) {
@@ -61,11 +53,7 @@ class FacturaForm extends ContentEntityForm {
      ];
    }
     
-    // Inicializar productos seleccionados
-    $productos_seleccionados = $form_state->get('productos_seleccionados') ?? [];
-    $form_state->set('productos_seleccionados', $productos_seleccionados);
-
-    // Contenedor para seleccionar productos y cantidad
+    $productos = $form_state->get('productos') ?? [];
     $form['producto_cantidad_container'] = [
       '#type' => 'container',
       '#attributes' => ['style' => 'display: flex; align-items: center; gap: 10px;'],
@@ -90,36 +78,31 @@ class FacturaForm extends ContentEntityForm {
       '#type' => 'submit',
       '#value' => $this->t('Añadir'),
       '#submit' => ['::agregarProducto'],
-      '#ajax' => [
-        'callback' => '::actualizarTablaProductos',
-        'wrapper' => 'tabla-productos',
-      ],
-      '#attributes' => ['style' => 'margin-left: auto;'],
+      '#attributes' => ['style' => 'margin-top: 40px;'],
     ];
 
-    // Tabla de productos seleccionados
-    $form['productos_seleccionados'] = [
-      '#type' => 'container',
-      '#prefix' => '<div id="tabla-productos">',
-      '#suffix' => '</div>',
-    ];
+    // Mostrar los productos agregados
+    $lista_productos = '<table border="1"><tr><th>Producto</th><th>Cantidad</th><th>Precio (€)</th><th>Importe (€)</th></tr>';
+    $total_importe = 0;
 
-    if (!empty($productos_seleccionados)) {
-      $form['productos_seleccionados']['tabla'] = [
-        '#type' => 'table',
-        '#header' => [$this->t('Producto'), $this->t('Cantidad'), $this->t('Precio Unitario'), $this->t('Total')],
-        '#rows' => [],
-      ];
-
-      foreach ($productos_seleccionados as $producto) {
-        $form['productos_seleccionados']['tabla']['#rows'][] = [
-          'nombre' => $producto['nombre'],
-          'cantidad' => $producto['cantidad'],
-          'precio_unitario' => $producto['precio'],
-          'total' => $producto['cantidad'] * $producto['precio'],
-        ];
-      }
+    foreach ($productos as $producto) {
+      $lista_productos .= '<tr>
+        <td>' . $producto['producto'] . '</td>
+        <td>' . $producto['cantidad'] . '</td>
+        <td>' . number_format($producto['precio'], 2) . '</td>
+        <td>' . number_format($producto['importe'], 2) . '</td>
+      </tr>';
+      $total_importe += $producto['importe'];
     }
+
+    $lista_productos .= '<tr><td colspan="3"><b>Total</b></td><td><b>' . number_format($total_importe, 2) . '€</b></td></tr>';
+    $lista_productos .= '</table>';
+
+    $form['productos_agregados'] = [
+      '#type' => 'markup',
+      '#markup' => $lista_productos,
+    ];
+
 
     // --- Fecha de vencimiento ---
     if (isset($form['fecha_vencimiento'])) {
@@ -171,51 +154,43 @@ class FacturaForm extends ContentEntityForm {
     }
   }
 
+  /**
+   * Agregar producto al array asociativo en el estado del formulario.
+   */
   public function agregarProducto(array &$form, FormStateInterface $form_state) {
-    $productos_seleccionados = $form_state->get('productos_seleccionados');
-    if (!is_array($productos_seleccionados)) {
-      $productos_seleccionados = [];
-    }
-  
-    $producto_id = $form_state->getValue(['producto_cantidad_container', 'producto_id']);
-    $cantidad = $form_state->getValue(['producto_cantidad_container', 'cantidad']);
-  
-    if (!empty($producto_id) && !empty($cantidad) && $cantidad > 0) {
-      $productos_seleccionados[] = [
-        'producto_id' => $producto_id,
-        'nombre' => $this->getProductoOptions()[$producto_id] ?? 'Desconocido',
-        'cantidad' => $cantidad,
-        'precio' => $this->getProductoPrecio($producto_id),
-      ];
-    }
-  
-    $form_state->set('productos_seleccionados', $productos_seleccionados);
-    $form_state->setRebuild(TRUE);
-  }
-  private function getProductoPrecio($producto_id) {
-    $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
-    return $producto ? $producto->get('precio')->value : 0;
-  }
+    $producto_id = $form_state->getValue('producto_id');
+    $cantidad = $form_state->getValue('cantidad');
 
-  public function actualizarTablaProductos(array &$form, FormStateInterface $form_state) {
-    return $form['productos_seleccionados'];
+    $productos = $form_state->get('productos') ?? [];
+
+    $precio = $this->getProductoPrecio($producto_id);
+    $importe = $precio * $cantidad;
+
+    // Agregar producto con precio e importe calculado
+    $productos[$producto_id] = [
+      'producto' => $this->getProductoOptions()[$producto_id],
+      'cantidad' => $cantidad,
+      'precio' => $precio,
+      'importe' => $importe,
+    ];
+
+    $form_state->set('productos', $productos);
+    $form_state->setRebuild();
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state) {
     parent::submitForm($form, $form_state);
     
-    //$productos = $form_state->get('productos_seleccionados') ?? [];
+    
     $num_pedido_aleatorio = $form_state->get('num_pedido_aleatorio');
 
     // Obtener los valores del formulario.
     $user_value = $form_state->getValue('user_id');
-    //$producto_value = $form_state->getValue('producto_id');
+    
     if (!empty($num_pedido_aleatorio)) {
       $this->entity->set('num_pedido', $num_pedido_aleatorio);
     }
-    /*if (!empty($producto_value)) {
-      $this->entity->set('producto_id', $producto_value);
-    }*/
+    
     if (!empty($user_value)) {
       $this->entity->set('user_id', $user_value);
     }
@@ -242,6 +217,13 @@ class FacturaForm extends ContentEntityForm {
       $options[$producto->id()] = $producto->get('nombre')->value;
     }
     return $options;
+  }
+  /**
+   * Obtener el precio de un producto.
+   */
+  private function getProductoPrecio($producto_id) {
+    $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
+    return $producto ? $producto->get('precio')->value : 0;
   }
     
 }
