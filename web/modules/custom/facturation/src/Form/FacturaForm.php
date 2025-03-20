@@ -271,8 +271,11 @@ class FacturaForm extends ContentEntityForm {
             $factura_producto->save();
 
             // Calcular los totales
-            $total_importe += $producto['importe'];
-            $total_impuesto += ($producto['importe'] * $producto['impuesto']) / 100;
+            // Validar si existen las claves antes de acceder a ellas
+            $importe = isset($producto['importe']) ? $producto['importe'] : 0;
+            $impuesto = isset($producto['impuesto']) ? $producto['impuesto'] : 0;
+            $total_importe += $importe;
+            $total_impuesto += ($importe * $impuesto) / 100;
         } else {
             \Drupal::messenger()->addError(t('Error al agregar producto: ID o cantidad inválida.'));
         }
