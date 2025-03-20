@@ -22,7 +22,7 @@ class FacturaForm extends ContentEntityForm {
       $form_state->set('num_pedido_aleatorio', $num_pedido_actual);
       $this->entity->set('num_pedido', $num_pedido_actual);
     }
-
+    
     $form['num_pedido'] = [
       '#type' => 'markup',
       '#markup' => $this->t('<b>Número de pedido único:</b> @num_pedido', ['@num_pedido' => $num_pedido_actual]),
@@ -52,25 +52,55 @@ class FacturaForm extends ContentEntityForm {
        '#required' => TRUE,
      ];
    }
-    
+
+   $factura_id = $this->entity->id();
     $productos = $form_state->get('productos') ?? [];
+    
+    if ($factura_id && empty($productos)) {
+      // Cargar todas las entidades factura_producto relacionadas con la factura.
+      $factura_productos = \Drupal::entityTypeManager()
+        ->getStorage('factura_producto')
+        ->loadByProperties(['factura_id' => $factura_id]);
+    
+      foreach ($factura_productos as $factura_producto) {
+        $producto_id = $factura_producto->get('producto_id')->target_id ?? NULL;
+        $cantidad = $factura_producto->get('cantidad')->value ?? 0;
+    
+        $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
+    
+        if ($producto) {
+          $productos[$producto_id] = [
+            'producto_id' => $producto_id,
+            'producto' => $producto->get('nombre')->value ?? 'Producto desconocido',
+            'cantidad' => $cantidad,
+          ];
+        }
+      }
+      $form_state->set('productos', $productos);
+    }
+   
+    
     $form['producto_cantidad_container'] = [
       '#type' => 'container',
       '#attributes' => ['style' => 'display: flex; align-items: center; gap: 10px;'],
     ];
 
+    $producto_options = $this->getProductoOptions();
+    $default_producto_id = !empty($producto_options) ? key($producto_options) : NULL;
+
     $form['producto_cantidad_container']['producto_id'] = [
       '#type' => 'select',
       '#title' => $this->t('Producto'),
-      '#options' => $this->getProductoOptions(),
+      '#options' => $producto_options,
       '#required' => TRUE,
+      '#default_value' => $form_state->getValue('producto_id') ?? $default_producto_id,
     ];
 
     $form['producto_cantidad_container']['cantidad'] = [
       '#type' => 'number',
       '#title' => $this->t('Cantidad'),
       '#min' => 1,
-      '#default_value' => 1,
+      '#default_value' => $form_state->getValue('cantidad') ?? 1,
       '#required' => TRUE,
     ];
 
@@ -89,14 +119,16 @@ class FacturaForm extends ContentEntityForm {
     $total_impuesto = 0;
 
     foreach ($productos as $producto) {
-      $importe = $producto['importe'];
-      $impuesto_total_producto = ($importe * $producto['impuesto']) / 100;
+      $precio = $this->getProductoPrecio($producto['producto_id']);
+      $impuesto = $this->getProductoImpuesto($producto['producto_id']);
+      $importe = $precio * $producto['cantidad'];
+      $impuesto_total_producto = ($importe * $impuesto) / 100;
 
       $lista_productos .= '<tr>
         <td>' . $producto['producto'] . '</td>
         <td>' . $producto['cantidad'] . '</td>
-        <td>' . number_format($producto['precio'], 2) . '</td>
-        <td>' . $producto['impuesto'] . '%</td>
+        <td>' . number_format($precio, 2) . '</td>
+        <td>' . $impuesto . '%</td>
         <td>' . number_format($importe, 2) . '</td>
       </tr>';
       $total_importe += $importe;
@@ -175,12 +207,18 @@ class FacturaForm extends ContentEntityForm {
 
     $productos = $form_state->get('productos') ?? [];
 
-    $precio = $this->getProductoPrecio($producto_id);
-    $impuesto = $this->getProductoImpuesto($producto_id);
+    if (!empty($producto_id)) {
+      $precio = $this->getProductoPrecio($producto_id);
+      $impuesto = $this->getProductoImpuesto($producto_id);
+    } else {
+      \Drupal::messenger()->addError($this->t('Error: No se seleccionó un producto válido.'));
+      return;
+    }
     $importe = $precio * $cantidad;
 
     // Agregar producto con precio e importe calculado
     $productos[$producto_id] = [
+      'producto_id' => $producto_id,
       'producto' => $this->getProductoOptions()[$producto_id],
       'cantidad' => $cantidad,
       'precio' => $precio,
@@ -194,46 +232,63 @@ class FacturaForm extends ContentEntityForm {
 
   public function submitForm(array &$form, FormStateInterface $form_state) {
     parent::submitForm($form, $form_state);
-    
-    
-    $num_pedido_aleatorio = $form_state->get('num_pedido_aleatorio');
 
-    // Obtener los valores del formulario.
+    $num_pedido_aleatorio = $form_state->get('num_pedido_aleatorio');
     $user_value = $form_state->getValue('user_id');
+
+    // Obtener instancia de la factura y asignar valores ANTES de guardar
+    $factura = $this->entity;
+
+    if (!empty($num_pedido_aleatorio)) {
+        $factura->set('num_pedido', $num_pedido_aleatorio);
+    }
+
+    if (!empty($user_value)) {
+        $factura->set('user_id', $user_value);
+    }
+
+    $factura->save(); // Guardar la factura con sus datos antes de insertar productos
+    $factura_id = $factura->id();
+    
+    // Obtener los productos desde el estado del formulario
     $productos = $form_state->get('productos') ?? [];
+
+    // Eliminar productos existentes antes de insertar nuevos (para edición)
+    \Drupal::database()->delete('factura_productos')
+      ->condition('factura_id', $factura_id)
+      ->execute();
 
     $total_importe = 0;
     $total_impuesto = 0;
-    $cantidad_total = 0;
 
-    // Calcular totales
     foreach ($productos as $producto) {
-        $total_importe += $producto['importe'];
-        $total_impuesto += ($producto['importe'] * $producto['impuesto']) / 100;
-        $cantidad_total += $producto['cantidad'];
-      }
+        if (!empty($producto['producto_id']) && $producto['cantidad'] > 0) {
+            $factura_producto = \Drupal::entityTypeManager()->getStorage('factura_producto')->create([
+                'factura_id' => $factura_id,
+                'producto_id' => $producto['producto_id'],
+                'cantidad' => $producto['cantidad'],
+            ]);
+            $factura_producto->save();
+
+            // Calcular los totales
+            $total_importe += $producto['importe'];
+            $total_impuesto += ($producto['importe'] * $producto['impuesto']) / 100;
+        } else {
+            \Drupal::messenger()->addError(t('Error al agregar producto: ID o cantidad inválida.'));
+        }
+    }
 
     $total_final = $total_importe + $total_impuesto;
-    
-    if (!empty($num_pedido_aleatorio)) {
-      $this->entity->set('num_pedido', $num_pedido_aleatorio);
-    }
-    
-    if (!empty($user_value)) {
-      $this->entity->set('user_id', $user_value);
-    }
 
-    $this->entity->set('cantidad', $cantidad_total);
-    $num_pedido_aleatorio = rand(100000, 999999); 
-    $this->entity->set('num_pedido', $num_pedido_aleatorio);
-    
-    // Guardar el Total Final en la entidad sin mostrarlo en el formulario
-    $this->entity->set('total_final', $total_final);
-
-    $this->entity->save();
+    // Actualizar total_final y guardar nuevamente solo si ha cambiado
+    if ($factura->get('total_final')->value != $total_final) {
+        $factura->set('total_final', $total_final);
+        $factura->save(); // Ahora sí, solo guardamos una segunda vez si es necesario
+    }
 
     \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada con los productos.'));
-  }
+}
+
 
   private function getUserOptions() {
     $options = [];
@@ -244,14 +299,52 @@ class FacturaForm extends ContentEntityForm {
     return $options;
   }
 
-  private function getProductoOptions() {
+  private function getProductoOptions($factura_id = NULL) {
     $options = [];
-    $productos = \Drupal::entityTypeManager()->getStorage('producto')->loadMultiple();
-    foreach ($productos as $producto) {
-      $options[$producto->id()] = $producto->get('nombre')->value;
+
+    if ($factura_id) {
+        // Modo edición: Obtener solo los productos asociados a esta factura
+        $factura_productos = \Drupal::entityTypeManager()
+            ->getStorage('factura_producto')
+            ->loadByProperties(['factura_id' => $factura_id]);
+
+        if (empty($factura_productos)) {
+            \Drupal::messenger()->addWarning($this->t('No hay productos asociados a esta factura.'));
+            return $options;
+        }
+
+        foreach ($factura_productos as $factura_producto) {
+            $producto_id = $factura_producto->get('producto_id')->target_id;
+            $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
+            
+            if ($producto) {
+                $nombre = $producto->get('nombre')->value ?? 'Producto desconocido';
+                $options[$producto_id] = $nombre;
+            }
+        }
+    } else {
+        // Modo creación: Mostrar todos los productos disponibles
+        $productos = \Drupal::entityTypeManager()->getStorage('producto')->loadMultiple();
+
+        if (empty($productos)) {
+            \Drupal::messenger()->addError($this->t('Error: No se encontraron productos en la base de datos.'));
+            return $options;
+        }
+
+        foreach ($productos as $producto) {
+            $nombre = $producto->get('nombre')->value ?? 'Producto sin nombre';
+            $options[$producto->id()] = $nombre;
+        }
     }
+
+    \Drupal::logger('facturation')->notice('Productos cargados para @modo factura @factura_id: @productos', [
+        '@modo' => $factura_id ? 'edición' : 'creación',
+        '@factura_id' => $factura_id ?? 'N/A',
+        '@productos' => json_encode(array_keys($options))
+    ]);
+
     return $options;
-  }
+}
   /**
    * Obtener el precio de un producto.
    */

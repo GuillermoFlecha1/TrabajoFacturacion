@@ -21,8 +21,6 @@
      $header['fecha_creacion'] = $this->t('Fecha de Creación');
      $header['fecha_vencimiento'] = $this->t('Fecha de Vencimiento');
      $header['usuario'] = $this->t('Usuario');
-     $header['producto'] = $this->t('Producto');
-     $header['cantidad'] = $this->t('Cantidad');
      $header['total_final'] = $this->t('Total Final');
      $header['acciones'] = $this->t('Acciones');
      
@@ -57,19 +55,6 @@
      else {
        $row['usuario'] = $this->t('No asignado');
      }
-   
-     // Obtener la información del producto asociado.
-     $producto = $entity->get('producto_id')->entity;
-     if ($producto) {
-       $row['producto'] = $producto->toLink()->toString();
-     }
-     else {
-       $row['producto'] = $this->t('No asignado');
-     }
-   
-     // Mostrar la cantidad de productos.
-     $row['cantidad'] = $entity->get('cantidad')->value;
-   
      // Mostrar el total final.
      $row['total_final'] = $entity->get('total_final')->value;
    

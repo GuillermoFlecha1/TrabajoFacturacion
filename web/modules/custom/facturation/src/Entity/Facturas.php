@@ -165,31 +165,7 @@ class Facturas extends ContentEntityBase {
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
-    // Producto.
-    $fields['producto_id'] = BaseFieldDefinition::create('entity_reference')
-      ->setLabel(t('Producto'))
-      ->setDescription(t('El producto asociado a la factura.'))
-      ->setRequired(TRUE)
-      ->setSetting('target_type', 'producto')
-      ->setDisplayOptions('view', [
-        'label' => 'above',
-        'type' => 'entity_reference_label',
-        'weight' => 5, // Orden en la vista
-      ])
-      ->setDisplayConfigurable('view', TRUE);
-
-    // Cantidad.
-    $fields['cantidad'] = BaseFieldDefinition::create('integer')
-      ->setLabel(t('Cantidad'))
-      ->setDescription(t('Cantidad de productos asociados a la factura.'))
-      ->setRequired(TRUE)
-      ->setDisplayOptions('view', [
-        'label' => 'above',
-        'type' => 'number',
-        'weight' => 6, // Orden en la vista
-      ])
-      ->setDisplayConfigurable('view', TRUE);
-
+  
     // Total Final.
     $fields['total_final'] = BaseFieldDefinition::create('decimal')
       ->setLabel(t('Total Final'))
@@ -207,18 +183,18 @@ class Facturas extends ContentEntityBase {
     return $fields;
   }
   /**
- * Callback para definir el valor predeterminado de fecha de vencimiento.
- *
- * @return array
- *   Valor predeterminado para el campo.
- */
-public static function defaultFechaVencimiento() {
-  $today = new \DateTime();
-  $today->modify('+4 years'); // Incrementar 4 años desde hoy.
-  return $today->format('Y-m-d');
-}
-public static function getCurrentDate() {
-  return date('Y-m-d');
-}
+   * Callback para definir el valor predeterminado de fecha de vencimiento.
+   *
+   * @return array
+   *   Valor predeterminado para el campo.
+   */
+  public static function defaultFechaVencimiento() {
+    $today = new \DateTime();
+    $today->modify('+4 years'); // Incrementar 4 años desde hoy.
+    return $today->format('Y-m-d');
+  }
+  public static function getCurrentDate() {
+    return date('Y-m-d');
+  }
 
 }

@@ -1,13 +1,3 @@
-<?php
-
-/**
- * @file
- * Install, update and uninstall functions for the facturas module.
- */
-
-/**
- * Implements hook_schema().
- */
 function facturas_schema() {
   $schema['facturas'] = [
     'description' => 'Tabla que almacena las facturas.',
@@ -38,18 +28,8 @@ function facturas_schema() {
         'type' => 'date', 
         'not null' => TRUE,
       ],
-      'cantidad' => [
-        'description' => 'Cantidad de productos en la factura.',
-        'type' => 'int',
-        'not null' => TRUE,
-      ],
       'user_id' => [
         'description' => 'ID del usuario asociado a la factura.',
-        'type' => 'int',
-        'not null' => TRUE,
-      ],
-      'producto_id' => [
-        'description' => 'ID del producto asociado a la factura.',
         'type' => 'int',
         'not null' => TRUE,
       ],
@@ -68,14 +48,52 @@ function facturas_schema() {
     ],
     'indexes' => [
       'user_id' => ['user_id'],
-      'producto_id' => ['producto_id'],
     ],
     'foreign keys' => [
       'user_id' => [
         'table' => 'users_field_data',
         'columns' => ['user_id' => 'uid'],
       ],
+    ],
+  ];
+
+  // Nueva tabla para relación facturas-productos
+  $schema['factura_productos'] = [
+    'description' => 'Tabla que almacena los productos de cada factura.',
+    'fields' => [
+      'id' => [
+        'description' => 'ID único de la relación.',
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'factura_id' => [
+        'description' => 'ID de la factura.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
       'producto_id' => [
+        'description' => 'ID del producto.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'cantidad' => [
+        'description' => 'Cantidad de este producto en la factura.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'factura_id' => ['factura_id'],
+      'producto_id' => ['producto_id'],
+    ],
+    'foreign keys' => [
+      'factura' => [
+        'table' => 'facturas',
+        'columns' => ['factura_id' => 'id'],
+      ],
+      'producto' => [
         'table' => 'producto',
         'columns' => ['producto_id' => 'id'],
       ],
