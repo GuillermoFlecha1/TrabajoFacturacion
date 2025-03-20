@@ -4,7 +4,7 @@ namespace Drupal\facturation\Form;
 
 use Drupal\Core\Entity\ContentEntityForm;
 use Drupal\Core\Form\FormStateInterface;
-
+use FPDF;
 /**
  * Formulario para gestionar Facturas.
  */
@@ -152,6 +152,12 @@ class FacturaForm extends ContentEntityForm {
     if (isset($form['fecha_vencimiento'])) {
       $form['fecha_vencimiento']['#element_validate'][] = [$this, 'validateFechaVencimiento'];
     }
+    $form['generar_pdf'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Generar PDF'),
+      '#submit' => ['::generarFacturaPDF'],
+      '#attributes' => ['style' => 'margin-top: 20px;'],
+    ];
     return $form;
   }
 
@@ -197,6 +203,114 @@ class FacturaForm extends ContentEntityForm {
       $form_state->setError($element, t('La fecha de vencimiento debe ser posterior a la fecha de creación.'));
     }
   }
+
+  public function generarFacturaPDF(array &$form, FormStateInterface $form_state) {
+    $factura = $this->entity;
+    $factura_id = $factura->id();
+    
+    if (!$factura_id) {
+        \Drupal::messenger()->addError($this->t('No se puede generar el PDF porque la factura no está guardada.'));
+        return;
+    }
+
+    // Obtener datos del usuario
+    $user = $factura->get('user_id')->entity;
+    $nombre_usuario = iconv('UTF-8', 'ISO-8859-1', $user->getDisplayName());
+    $email_usuario = iconv('UTF-8', 'ISO-8859-1', $user->getEmail());
+    $dni_usuario = iconv('UTF-8', 'ISO-8859-1', $user->get('field_dni')->value ?? 'N/A');
+
+    // Obtener datos de la factura
+    $num_pedido = iconv('UTF-8', 'ISO-8859-1', $factura->get('num_pedido')->value);
+    $fecha_creacion = iconv('UTF-8', 'ISO-8859-1', $factura->get('fecha_creacion')->value);
+    $fecha_vencimiento = iconv('UTF-8', 'ISO-8859-1', $factura->get('fecha_vencimiento')->value);
+
+    // Obtener productos de la factura
+    $factura_productos = \Drupal::entityTypeManager()
+        ->getStorage('factura_producto')
+        ->loadByProperties(['factura_id' => $factura_id]);
+
+    // Crear instancia de FPDF
+    $pdf = new FPDF();
+    $pdf->AddPage();
+    $pdf->SetFont('Arial', 'B', 16);
+    
+    // Encabezado
+    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° ') . $num_pedido, 0, 1, 'C');
+    $pdf->Ln(5);
+
+    // Datos del usuario
+    $pdf->SetFont('Arial', '', 12);
+    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Cliente: ') . iconv('UTF-8', 'ISO-8859-1', $nombre_usuario));
+    $pdf->Ln();
+    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Email: ') . iconv('UTF-8', 'ISO-8859-1', $email_usuario));
+    $pdf->Ln();
+    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'DNI: ') . iconv('UTF-8', 'ISO-8859-1', $dni_usuario));
+    $pdf->Ln(10);
+
+
+    // Fechas
+    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Fecha de Creación: ' . $fecha_creacion));
+    $pdf->Ln();
+    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Fecha de Vencimiento: ' . $fecha_vencimiento));
+    $pdf->Ln(10);
+
+    // Encabezado tabla productos
+    $pdf->SetFont('Arial', 'B', 10);
+    $pdf->Cell(60, 10, iconv('UTF-8', 'ISO-8859-1', 'Producto'), 1);
+    $pdf->Cell(30, 10, iconv('UTF-8', 'ISO-8859-1', 'Cantidad'), 1);
+    $pdf->Cell(30, 10, 'Precio (' . chr(128) . ')', 1);
+    $pdf->Cell(30, 10, iconv('UTF-8', 'ISO-8859-1', 'Impuesto (%)'), 1);
+    $pdf->Cell(30, 10, 'Importe (' . chr(128) . ')', 1);
+    
+    $pdf->Ln();
+
+    $pdf->SetFont('Arial', '', 10);
+    $total_importe = 0;
+    $total_impuesto = 0;
+
+    foreach ($factura_productos as $factura_producto) {
+        $producto = $factura_producto->get('producto_id')->entity;
+        $nombre_producto = iconv('UTF-8', 'ISO-8859-1', $producto->get('nombre')->value);
+        $cantidad = $factura_producto->get('cantidad')->value;
+        $precio = $this->getProductoPrecio($producto->id());
+        $impuesto = $this->getProductoImpuesto($producto->id());
+        $importe = $precio * $cantidad;
+        $impuesto_total = ($importe * $impuesto) / 100;
+
+        $pdf->Cell(60, 10, iconv('UTF-8', 'ISO-8859-1', $nombre_producto), 1);
+        $pdf->Cell(30, 10, $cantidad, 1, 0, 'C');
+        $pdf->Cell(30, 10, number_format($precio, 2), 1, 0, 'C');
+        $pdf->Cell(30, 10, $impuesto . '%', 1, 0, 'C');
+        $pdf->Cell(30, 10, number_format($importe, 2), 1, 0, 'C');
+        $pdf->Ln();
+
+        $total_importe += $importe;
+        $total_impuesto += $impuesto_total;
+    }
+
+    $total_final = $total_importe + $total_impuesto;
+
+    // Totales
+    $pdf->Ln(5);
+    $pdf->Cell(120, 10, '', 0);
+    $pdf->SetFont('Arial', 'B', 10);
+    $pdf->Cell(40, 10, iconv('UTF-8', 'ISO-8859-1', 'Total Importe:'), 1);
+    $pdf->Cell(30, 10, number_format($total_importe, 2) . ' ' . chr(128), 1, 1, 'C');
+
+
+    $pdf->Cell(120, 10, '', 0);
+    $pdf->Cell(40, 10, iconv('UTF-8', 'ISO-8859-1', 'Total Impuesto:'), 1);
+    $pdf->Cell(30, 10, number_format($total_impuesto, 2) . ' ' . chr(128), 1, 1, 'C');
+
+    $pdf->Cell(120, 10, '', 0);
+    $pdf->Cell(40, 10, iconv('UTF-8', 'ISO-8859-1', 'Total Final:'), 1);
+    $pdf->Cell(30, 10, number_format($total_final, 2) . ' ' . chr(128), 1, 1, 'C');
+
+
+    // Salida del PDF
+    $pdf->Output('D', 'Factura_' . $num_pedido . '.pdf');
+    exit();
+}
 
   /**
    * Agregar producto al array asociativo en el estado del formulario.
@@ -295,12 +409,17 @@ class FacturaForm extends ContentEntityForm {
 
   private function getUserOptions() {
     $options = [];
-    $users = \Drupal::entityTypeManager()->getStorage('user')->loadMultiple();
+    $users = \Drupal::entityTypeManager()->getStorage('user')->loadByProperties(['status' => 1]); // Cargar solo usuarios activos
+    
     foreach ($users as $user) {
-      $options[$user->id()] = $user->getDisplayName();
+        if ($user->id() > 0) { // Filtrar usuarios con ID mayor que 0
+            $options[$user->id()] = $user->getDisplayName();
+        }
     }
+
     return $options;
   }
+
 
   private function getProductoOptions($factura_id = NULL) {
     $options = [];
