@@ -5,7 +5,6 @@ use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Entity\EntityChangedTrait;
-use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
  * Defines the Facturas entity.
@@ -58,11 +57,11 @@ class Facturas extends ContentEntityBase {
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'string',
-        'weight' => 0, 
+        'weight' => 0, // Orden en la vista
       ])
       ->setDisplayOptions('form', [
         'type' => 'number',
-        'weight' => 0, 
+        'weight' => 0, // Orden en el formulario
       ])
       ->setDisplayConfigurable('form', FALSE)
       ->setDisplayConfigurable('view', FALSE);
@@ -100,16 +99,28 @@ class Facturas extends ContentEntityBase {
       ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
-    
+  
     // Número de Pedido (único, generado aleatoriamente).
     $fields['num_pedido'] = BaseFieldDefinition::create('integer')
     ->setLabel(t('Número de Pedido'))
     ->setDescription(t('Número de pedido único generado aleatoriamente.'))
+    ->setRequired(TRUE)
     ->setDisplayOptions('view', [
       'label' => 'above',
       'type' => 'number',
       'weight' => 1, // Orden en la vista
+      'settings' => [
+        'readonly' => TRUE, // Mostrarlo como solo lectura en la vista.
+      ],
     ])
+    ->setDisplayOptions('form', [
+      'type' => 'number',
+      'weight' => 1, // Orden en el formulario
+      'settings' => [
+        'readonly' => TRUE, // Evitar que el número se pueda editar en el formulario.
+      ],
+    ])
+    ->setDisplayConfigurable('form', TRUE)
     ->setDisplayConfigurable('view', TRUE);
     
     //Fecha de Vencimiento.
@@ -158,7 +169,6 @@ class Facturas extends ContentEntityBase {
     $fields['producto_id'] = BaseFieldDefinition::create('entity_reference')
       ->setLabel(t('Producto'))
       ->setDescription(t('El producto asociado a la factura.'))
-      ->setRequired(TRUE)
       ->setSetting('target_type', 'producto')
       ->setDisplayOptions('view', [
         'label' => 'above',
@@ -171,7 +181,6 @@ class Facturas extends ContentEntityBase {
     $fields['cantidad'] = BaseFieldDefinition::create('integer')
       ->setLabel(t('Cantidad'))
       ->setDescription(t('Cantidad de productos asociados a la factura.'))
-      ->setRequired(TRUE)
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'number',
@@ -191,48 +200,23 @@ class Facturas extends ContentEntityBase {
         'type' => 'number_decimal',
         'weight' => 7, // Orden en la vista
       ])
-      ->setDisplayOptions('form', [
-        'type' => 'number',
-        'weight' => 7, // Orden en el formulario
-      ])
-      ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
     return $fields;
   }
-
   /**
-     * Callback para definir el valor predeterminado de fecha de vencimiento.
-     *
-     * @return array
-     *   Valor predeterminado para el campo.
-     */
-    public static function defaultFechaVencimiento() {
-      $today = new \DateTime();
-      $today->modify('+4 years');
-      return $today->format('Y-m-d');
-    }
+ * Callback para definir el valor predeterminado de fecha de vencimiento.
+ *
+ * @return array
+ *   Valor predeterminado para el campo.
+ */
+public static function defaultFechaVencimiento() {
+  $today = new \DateTime();
+  $today->modify('+4 years'); // Incrementar 4 años desde hoy.
+  return $today->format('Y-m-d');
+}
+public static function getCurrentDate() {
+  return date('Y-m-d');
+}
 
-    public static function getCurrentDate() {
-      return date('Y-m-d');
-    }  
-
-     /**
-     * Genera el número de pedido aleatorio.
-     */
-    public function generateNumPedido() {
-      // Si no existe un número de pedido, generamos uno aleatorio
-      if (!$this->get('num_pedido')->value) {
-        $this->set('num_pedido', rand(100000, 999999));
-      }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function preSave(EntityStorageInterface $storage) {
-      $this->generateNumPedido();
-
-      parent::preSave($storage);
-    }
 }
