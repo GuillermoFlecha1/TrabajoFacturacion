@@ -113,14 +113,6 @@ class Facturas extends ContentEntityBase {
         'readonly' => TRUE, // Mostrarlo como solo lectura en la vista.
       ],
     ])
-    ->setDisplayOptions('form', [
-      'type' => 'number',
-      'weight' => 1, // Orden en el formulario
-      'settings' => [
-        'readonly' => TRUE, // Evitar que el número se pueda editar en el formulario.
-      ],
-    ])
-    ->setDisplayConfigurable('form', TRUE)
     ->setDisplayConfigurable('view', TRUE);
     
     //Fecha de Vencimiento.

@@ -23,10 +23,12 @@ class FacturaForm extends ContentEntityForm {
       $this->entity->set('num_pedido', $num_pedido_actual);
     }
     
-    $form['num_pedido'] = [
-      '#type' => 'markup',
-      '#markup' => $this->t('<b>Número de pedido único:</b> @num_pedido', ['@num_pedido' => $num_pedido_actual]),
-    ];
+    if (!$this->entity->isNew()) {
+      $form['num_pedido'] = [
+        '#type' => 'markup',
+        '#markup' => $this->t('<b>Número de pedido único:</b> @num_pedido', ['@num_pedido' => $num_pedido_actual]),
+      ];
+    }
 
    // Prepara el valor por defecto (si es edición).
    $default_value_User = '';
@@ -207,7 +209,7 @@ class FacturaForm extends ContentEntityForm {
   public function generarFacturaPDF(array &$form, FormStateInterface $form_state) {
     $factura = $this->entity;
     $factura_id = $factura->id();
-    
+
     if (!$factura_id) {
         \Drupal::messenger()->addError($this->t('No se puede generar el PDF porque la factura no está guardada.'));
         return;
@@ -221,8 +223,8 @@ class FacturaForm extends ContentEntityForm {
 
     // Obtener datos de la factura
     $num_pedido = iconv('UTF-8', 'ISO-8859-1', $factura->get('num_pedido')->value);
-    $fecha_creacion = iconv('UTF-8', 'ISO-8859-1', $factura->get('fecha_creacion')->value);
-    $fecha_vencimiento = iconv('UTF-8', 'ISO-8859-1', $factura->get('fecha_vencimiento')->value);
+    $fecha_creacion = date('d/m/Y', strtotime($factura->get('fecha_creacion')->value));
+    $fecha_vencimiento = date('d/m/Y', strtotime($factura->get('fecha_vencimiento')->value));
 
     // Obtener productos de la factura
     $factura_productos = \Drupal::entityTypeManager()
@@ -232,37 +234,39 @@ class FacturaForm extends ContentEntityForm {
     // Crear instancia de FPDF
     $pdf = new FPDF();
     $pdf->AddPage();
-    $pdf->SetFont('Arial', 'B', 16);
     
-    // Encabezado
-    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° ') . $num_pedido, 0, 1, 'C');
+    // **Encabezado**
+    $pdf->SetFont('Arial', 'B', 18);
+    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° ' . $num_pedido), 0, 1, 'C');
+    $pdf->Ln(5);
+    
+    // **Datos del Cliente**
+    $pdf->SetFont('Arial', 'B', 12);
+    $pdf->Cell(100, 8, iconv('UTF-8', 'ISO-8859-1', 'Datos del Cliente:'), 0, 1);
+    
+    $pdf->SetFont('Arial', '', 11);
+    $pdf->Cell(100, 6, iconv('UTF-8', 'ISO-8859-1', 'Nombre: ') . $nombre_usuario, 0, 1);
+    $pdf->Cell(100, 6, iconv('UTF-8', 'ISO-8859-1', 'Email: ') . $email_usuario, 0, 1);
+    $pdf->Cell(100, 6, iconv('UTF-8', 'ISO-8859-1', 'DNI: ') . $dni_usuario, 0, 1);
     $pdf->Ln(5);
 
-    // Datos del usuario
-    $pdf->SetFont('Arial', '', 12);
-    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Cliente: ') . iconv('UTF-8', 'ISO-8859-1', $nombre_usuario));
-    $pdf->Ln();
-    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Email: ') . iconv('UTF-8', 'ISO-8859-1', $email_usuario));
-    $pdf->Ln();
-    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'DNI: ') . iconv('UTF-8', 'ISO-8859-1', $dni_usuario));
-    $pdf->Ln(10);
+    // **Fechas**
+    $pdf->SetFont('Arial', 'B', 12);
+    $pdf->Cell(100, 8, 'Detalles de la Factura:', 0, 1);
 
+    $pdf->SetFont('Arial', '', 11);
+    $pdf->Cell(100, 6, 'Fecha de Creacion: ' . $fecha_creacion, 0, 1);
+    $pdf->Cell(100, 6, 'Fecha de Vencimiento: ' . $fecha_vencimiento, 0, 1);
+    $pdf->Ln(8);
 
-    // Fechas
-    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Fecha de Creación: ' . $fecha_creacion));
-    $pdf->Ln();
-    $pdf->Cell(100, 10, iconv('UTF-8', 'ISO-8859-1', 'Fecha de Vencimiento: ' . $fecha_vencimiento));
-    $pdf->Ln(10);
-
-    // Encabezado tabla productos
+    // **Encabezado Tabla**
     $pdf->SetFont('Arial', 'B', 10);
-    $pdf->Cell(60, 10, iconv('UTF-8', 'ISO-8859-1', 'Producto'), 1);
-    $pdf->Cell(30, 10, iconv('UTF-8', 'ISO-8859-1', 'Cantidad'), 1);
-    $pdf->Cell(30, 10, 'Precio (' . chr(128) . ')', 1);
-    $pdf->Cell(30, 10, iconv('UTF-8', 'ISO-8859-1', 'Impuesto (%)'), 1);
-    $pdf->Cell(30, 10, 'Importe (' . chr(128) . ')', 1);
-    
-    $pdf->Ln();
+    $pdf->SetFillColor(200, 200, 200);
+    $pdf->Cell(60, 8, 'Producto', 1, 0, 'C', true);
+    $pdf->Cell(25, 8, 'Cantidad', 1, 0, 'C', true);
+    $pdf->Cell(30, 8, 'Precio (' . chr(128) . ')', 1, 0, 'C', true);
+    $pdf->Cell(25, 8, 'Impuesto (%)', 1, 0, 'C', true);
+    $pdf->Cell(30, 8, 'Importe (' . chr(128) . ')', 1, 1, 'C', true);
 
     $pdf->SetFont('Arial', '', 10);
     $total_importe = 0;
@@ -277,12 +281,12 @@ class FacturaForm extends ContentEntityForm {
         $importe = $precio * $cantidad;
         $impuesto_total = ($importe * $impuesto) / 100;
 
-        $pdf->Cell(60, 10, iconv('UTF-8', 'ISO-8859-1', $nombre_producto), 1);
-        $pdf->Cell(30, 10, $cantidad, 1, 0, 'C');
-        $pdf->Cell(30, 10, number_format($precio, 2), 1, 0, 'C');
-        $pdf->Cell(30, 10, $impuesto . '%', 1, 0, 'C');
-        $pdf->Cell(30, 10, number_format($importe, 2), 1, 0, 'C');
-        $pdf->Ln();
+        // Filas de la tabla
+        $pdf->Cell(60, 8, $nombre_producto, 1);
+        $pdf->Cell(25, 8, $cantidad, 1, 0, 'C');
+        $pdf->Cell(30, 8, number_format($precio, 2), 1, 0, 'C');
+        $pdf->Cell(25, 8, $impuesto . '%', 1, 0, 'C');
+        $pdf->Cell(30, 8, number_format($importe, 2), 1, 1, 'C');
 
         $total_importe += $importe;
         $total_impuesto += $impuesto_total;
@@ -290,24 +294,26 @@ class FacturaForm extends ContentEntityForm {
 
     $total_final = $total_importe + $total_impuesto;
 
-    // Totales
+    // **Totales**
     $pdf->Ln(5);
-    $pdf->Cell(120, 10, '', 0);
-    $pdf->SetFont('Arial', 'B', 10);
-    $pdf->Cell(40, 10, iconv('UTF-8', 'ISO-8859-1', 'Total Importe:'), 1);
-    $pdf->Cell(30, 10, number_format($total_importe, 2) . ' ' . chr(128), 1, 1, 'C');
+    $pdf->SetFont('Arial', 'B', 11);
+    $pdf->SetFillColor(230, 230, 230);
+    
+    $pdf->Cell(120, 8, '', 0);
+    $pdf->Cell(40, 8, 'Total Importe:', 1, 0, 'R', true);
+    $pdf->Cell(30, 8, number_format($total_importe, 2) . ' ' . chr(128), 1, 1, 'C');
 
+    $pdf->Cell(120, 8, '', 0);
+    $pdf->Cell(40, 8, 'Total Impuesto:', 1, 0, 'R', true);
+    $pdf->Cell(30, 8, number_format($total_impuesto, 2) . ' ' . chr(128), 1, 1, 'C');
 
+    $pdf->SetFont('Arial', 'B', 12);
+    $pdf->SetFillColor(180, 220, 180);
     $pdf->Cell(120, 10, '', 0);
-    $pdf->Cell(40, 10, iconv('UTF-8', 'ISO-8859-1', 'Total Impuesto:'), 1);
-    $pdf->Cell(30, 10, number_format($total_impuesto, 2) . ' ' . chr(128), 1, 1, 'C');
-
-    $pdf->Cell(120, 10, '', 0);
-    $pdf->Cell(40, 10, iconv('UTF-8', 'ISO-8859-1', 'Total Final:'), 1);
+    $pdf->Cell(40, 10, 'Total Final:', 1, 0, 'R', true);
     $pdf->Cell(30, 10, number_format($total_final, 2) . ' ' . chr(128), 1, 1, 'C');
 
-
-    // Salida del PDF
+    // **Salida del PDF**
     $pdf->Output('D', 'Factura_' . $num_pedido . '.pdf');
     exit();
 }
