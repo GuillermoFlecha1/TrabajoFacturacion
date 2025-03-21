@@ -110,45 +110,98 @@ class FacturaForm extends ContentEntityForm {
       '#type' => 'submit',
       '#value' => $this->t('Añadir'),
       '#submit' => ['::agregarProducto'],
+      '#ajax' => [
+        'callback' => '::ajaxActualizarTabla', 
+        'wrapper' => 'productos-agregados-wrapper',  
+        'event' => 'click',  
+        'effect' => 'fade',  
+      ],
       '#attributes' => ['style' => 'margin-top: 40px;'],
     ];
 
-    // Mostrar los productos agregados
-    $lista_productos = '<table border="1">
-      <tr><th>Producto</th><th>Cantidad</th><th>Precio (€)</th><th>Impuesto (%)</th><th>Importe (€)</th></tr>';
-    
-    $total_importe = 0;
-    $total_impuesto = 0;
+    // Contenedor para la tabla de productos agregados
+    $form['productos_agregados_wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'productos-agregados-wrapper'],
+  ];
 
-    foreach ($productos as $producto) {
+  // Crear la tabla de productos agregados
+  $form['productos_agregados_wrapper']['productos_agregados'] = [
+      '#type' => 'table',
+      '#header' => [
+          $this->t('Producto'),
+          $this->t('Cantidad'),
+          $this->t('Precio (€)'),
+          $this->t('Impuesto (%)'),
+          $this->t('Importe (€)'),
+          $this->t('Acciones'),
+      ],
+      '#empty' => $this->t('No hay productos agregados.'),
+      '#tree' => TRUE,
+  ];
+
+  $total_importe = 0;
+  $total_impuesto = 0;
+
+  foreach ($productos as $index => $producto) {
       $precio = $this->getProductoPrecio($producto['producto_id']);
       $impuesto = $this->getProductoImpuesto($producto['producto_id']);
-      $importe = $precio * $producto['cantidad'];
+      $importe = $precio * ($form_state->getValue(['productos_agregados', $index, 'cantidad']) ?? $producto['cantidad']);
       $impuesto_total_producto = ($importe * $impuesto) / 100;
-
-      $lista_productos .= '<tr>
-        <td>' . $producto['producto'] . '</td>
-        <td>' . $producto['cantidad'] . '</td>
-        <td>' . number_format($precio, 2) . '</td>
-        <td>' . $impuesto . '%</td>
-        <td>' . number_format($importe, 2) . '</td>
-      </tr>';
       $total_importe += $importe;
       $total_impuesto += $impuesto_total_producto;
-    }
 
-    $total_final = $total_importe + $total_impuesto;
+      $form['productos_agregados_wrapper']['productos_agregados'][$index]['producto'] = [
+          '#type' => 'select',
+          '#options' => $this->getProductoOptions(),
+          '#default_value' => $producto['producto_id'],
+          '#ajax' => [
+              'callback' => '::ajaxActualizarTabla',
+              'wrapper' => 'productos-agregados-wrapper',
+              'event' => 'change',
+          ],
+      ];
+      $form['productos_agregados_wrapper']['productos_agregados'][$index]['cantidad'] = [
+          '#type' => 'number',
+          '#default_value' => $producto['cantidad'],
+          '#min' => 1,
+          '#ajax' => [
+              'callback' => '::ajaxActualizarTabla',
+              'event' => 'change',
+              'wrapper' => 'productos-agregados-wrapper',
+          ],
+      ];
+      $form['productos_agregados_wrapper']['productos_agregados'][$index]['precio'] = [
+          '#type' => 'textfield',
+          '#default_value' => number_format($precio, 2),
+          '#disabled' => TRUE,
+      ];
+      $form['productos_agregados_wrapper']['productos_agregados'][$index]['impuesto'] = [
+          '#type' => 'textfield',
+          '#default_value' => number_format($impuesto, 2) . '%',
+          '#disabled' => TRUE,
+      ];
+      $form['productos_agregados_wrapper']['productos_agregados'][$index]['importe'] = [
+          '#type' => 'textfield',
+          '#default_value' => number_format($importe, 2),
+          '#disabled' => TRUE,
+      ];
+      $form['productos_agregados_wrapper']['productos_agregados'][$index]['acciones'] = [
+          '#type' => 'submit',
+          '#value' => $this->t('Eliminar'),
+          '#submit' => ['::eliminarProducto'],
+          '#limit_validation_errors' => [],
+          '#name' => 'eliminar_producto_' . $producto['producto_id'],
+      ];
+  }
 
-    $lista_productos .= '<tr><td colspan="4"><b>Total Importe</b></td><td><b>' . number_format($total_importe, 2) . '€</b></td></tr>';
-    $lista_productos .= '<tr><td colspan="4"><b>Total Impuesto</b></td><td><b>' . number_format($total_impuesto, 2) . '€</b></td></tr>';
-    $lista_productos .= '<tr><td colspan="4"><b>Total Final</b></td><td><b>' . number_format($total_final, 2) . '€</b></td></tr>';
-    $lista_productos .= '</table>';
-
-    $form['productos_agregados'] = [
+  // Agregar los totales al final de la tabla
+  $form['productos_agregados_wrapper']['totales'] = [
       '#type' => 'markup',
-      '#markup' => $lista_productos,
-    ];
-
+      '#markup' => '<div><b>Total Importe:</b> ' . number_format($total_importe, 2) . '€<br>' .
+                   '<b>Total Impuesto:</b> ' . number_format($total_impuesto, 2) . '€<br>' .
+                   '<b>Total Final:</b> ' . number_format($total_importe + $total_impuesto, 2) . '€</div>',
+  ];
 
     // --- Fecha de vencimiento ---
     if (isset($form['fecha_vencimiento'])) {
@@ -162,6 +215,13 @@ class FacturaForm extends ContentEntityForm {
     ];
     return $form;
   }
+  /**
+   * Callback AJAX para actualizar la tabla de productos.
+   */
+  public function ajaxActualizarTabla(array &$form, FormStateInterface $form_state) {
+    return $form['productos_agregados_wrapper'];
+  }
+
 
   /**
    * Validación del campo cantidad.
@@ -349,6 +409,35 @@ class FacturaForm extends ContentEntityForm {
     $form_state->set('productos', $productos);
     $form_state->setRebuild();
   }
+
+  /**
+   * Elimina un producto del listado editable.
+   */
+  public function eliminarProducto(array &$form, FormStateInterface $form_state) {
+    $triggering_element = $form_state->getTriggeringElement();
+    $producto_id = str_replace('eliminar_producto_', '', $triggering_element['#name']);
+    
+    $productos = $form_state->get('productos') ?? [];
+    
+    // Buscar el índice del producto en el arreglo usando su ID
+    foreach ($productos as $key => $producto) {
+        if ($producto['producto_id'] == $producto_id) {
+            unset($productos[$key]);
+            break;
+        }
+    }
+
+    
+// Reindexar el arreglo después de eliminar
+    $productos = array_values($productos);
+    
+    // Actualizar el estado del formulario con los productos restantes
+    $form_state->set('productos', $productos);
+    
+    // Marcar el formulario para que se reconstruya y refleje los cambios
+    $form_state->setRebuild();
+  }
+
 
   public function submitForm(array &$form, FormStateInterface $form_state) {
     parent::submitForm($form, $form_state);
