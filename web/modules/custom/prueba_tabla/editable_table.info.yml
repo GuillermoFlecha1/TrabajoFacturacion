@@ -1,0 +1,5 @@
+name: 'Editable Table'
+type: module
+description: 'Ejemplo de formulario con tabla editable usando Ajax.'
+core_version_requirement: ^10 || ^11
+package: Custom

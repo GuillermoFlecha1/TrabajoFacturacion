@@ -1,0 +1,61 @@
+<?php
+
+/**
+ * @file
+ * Contiene las funciones de instalación y desinstalación para el módulo.
+ */
+
+/**
+ * Implementa hook_schema().
+ */
+function prueba_tabla_schema() {
+  $schema['editable_table'] = array(
+    'description' => 'Tabla para almacenar datos de productos editables.',
+    'fields' => array(
+      'id' => array(
+        'description' => 'ID único de cada fila.',
+        'type' => 'serial',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'name' => array(
+        'description' => 'Nombre del producto.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'quantity' => array(
+        'description' => 'Cantidad del producto.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'price' => array(
+        'description' => 'Precio del producto.',
+        'type' => 'decimal',
+        'length' => '10,2',
+        'not null' => TRUE,
+        'default' => 0.00,
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implementa hook_install().
+ */
+function prueba_tabla_install() {
+  // Crear la tabla en la base de datos cuando se instala el módulo.
+  drupal_install_schema('prueba_tabla');
+}
+
+/**
+ * Implementa hook_uninstall().
+ */
+function prueba_tabla_uninstall() {
+  // Eliminar la tabla de la base de datos cuando se desinstala el módulo.
+  \Drupal::database()->schema()->dropTable('editable_table');
+}

@@ -1,9 +1,0 @@
-name: 'Factura'
-type: module
-description: 'Módulo para creación de una factura.'
-core_version_requirement: ^10 || ^11
-package: Custom
-dependencies: 
-  - drupal:field
-  - drupal:text
-  - drupal:user
