@@ -142,6 +142,7 @@ class FacturaForm extends ContentEntityForm {
 
   $total_importe = 0;
   $total_impuesto = 0;
+  $total_final=0;
 
   foreach ($productos as $index => $producto) {
       $precio = $this->getProductoPrecio($producto['producto_id']);
@@ -150,6 +151,7 @@ class FacturaForm extends ContentEntityForm {
       $impuesto_total_producto = ($importe * $impuesto) / 100;
       $total_importe += $importe;
       $total_impuesto += $impuesto_total_producto;
+      $total_final = $total_importe + $total_impuesto;
 
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['producto'] = [
           '#type' => 'select',
@@ -200,7 +202,7 @@ class FacturaForm extends ContentEntityForm {
       '#type' => 'markup',
       '#markup' => '<div><b>Total Importe:</b> ' . number_format($total_importe, 2) . '€<br>' .
                    '<b>Total Impuesto:</b> ' . number_format($total_impuesto, 2) . '€<br>' .
-                   '<b>Total Final:</b> ' . number_format($total_importe + $total_impuesto, 2) . '€</div>',
+                   '<b>Total Final:</b> ' . number_format($total_final, 2) . '€</div>',
   ];
 
     // --- Fecha de vencimiento ---
@@ -445,7 +447,7 @@ class FacturaForm extends ContentEntityForm {
     $num_pedido_aleatorio = $form_state->get('num_pedido_aleatorio');
     $user_value = $form_state->getValue('user_id');
 
-    // Obtener instancia de la factura y asignar valores ANTES de guardar
+    // Obtener la entidad de factura
     $factura = $this->entity;
 
     if (!empty($num_pedido_aleatorio)) {
@@ -456,50 +458,54 @@ class FacturaForm extends ContentEntityForm {
         $factura->set('user_id', $user_value);
     }
 
-    $factura->save(); // Guardar la factura con sus datos antes de insertar productos
+    $factura->save();
     $factura_id = $factura->id();
-    
-    // Obtener los productos desde el estado del formulario
-    $productos = $form_state->get('productos') ?? [];
 
-    // Eliminar productos existentes antes de insertar nuevos (para edición)
+    // 🔹 Obtener los productos actualizados desde el formulario (los editados en la tabla)
+    $productos_actualizados = $form_state->getValue(['productos_agregados']) ?? [];
+
+    // 🔹 Eliminar productos anteriores y guardar los nuevos
     \Drupal::database()->delete('factura_productos')
-      ->condition('factura_id', $factura_id)
-      ->execute();
+        ->condition('factura_id', $factura_id)
+        ->execute();
 
     $total_importe = 0;
     $total_impuesto = 0;
 
-    foreach ($productos as $producto) {
-        if (!empty($producto['producto_id']) && $producto['cantidad'] > 0) {
+    foreach ($productos_actualizados as $index => $producto) {
+        $producto_id = $producto['producto'];
+        $cantidad = $producto['cantidad'];
+
+        if (!empty($producto_id) && $cantidad > 0) {
             $factura_producto = \Drupal::entityTypeManager()->getStorage('factura_producto')->create([
                 'factura_id' => $factura_id,
-                'producto_id' => $producto['producto_id'],
-                'cantidad' => $producto['cantidad'],
+                'producto_id' => $producto_id,
+                'cantidad' => $cantidad,
             ]);
             $factura_producto->save();
 
-            // Calcular los totales
-            // Validar si existen las claves antes de acceder a ellas
-            $importe = isset($producto['importe']) ? $producto['importe'] : 0;
-            $impuesto = isset($producto['impuesto']) ? $producto['impuesto'] : 0;
+            // 🔹 Obtener precio e impuesto del producto
+            $precio = $this->getProductoPrecio($producto_id);
+            $impuesto = $this->getProductoImpuesto($producto_id);
+            $importe = $precio * $cantidad;
+            $impuesto_total_producto = ($importe * $impuesto) / 100;
+
             $total_importe += $importe;
-            $total_impuesto += ($importe * $impuesto) / 100;
-        } else {
-            \Drupal::messenger()->addError(t('Error al agregar producto: ID o cantidad inválida.'));
+            $total_impuesto += $impuesto_total_producto;
         }
     }
 
     $total_final = $total_importe + $total_impuesto;
 
-    // Actualizar total_final y guardar nuevamente solo si ha cambiado
+    // 🔹 Guardar el total correcto en la factura
     if ($factura->get('total_final')->value != $total_final) {
         $factura->set('total_final', $total_final);
-        $factura->save(); // Ahora sí, solo guardamos una segunda vez si es necesario
+        $factura->save();
     }
 
-    \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada con los productos.'));
+    \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada correctamente con las cantidades actualizadas.'));
 }
+
 
 
   private function getUserOptions() {
