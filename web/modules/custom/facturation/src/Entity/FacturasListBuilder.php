@@ -37,37 +37,42 @@ class FacturasListBuilder extends EntityListBuilder {
     if (!$entity) {
       return;
     }
-
+  
     // Define una fila para cada factura.
     $row = [];
-
+  
     // Definimos los campos de la factura
     $row['id'] = $entity->id();
-    $row['num_pedido'] = $entity->get('num_pedido')->value;
-
+  
+    // Convertimos el número de pedido en un enlace.
+    // Suponiendo que tienes una ruta para ver el pedido de la factura (deberías tener una ruta definida para esto).
+    $factura_numero = $entity->get('num_pedido')->value;
+    $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $factura_numero]);
+    $row['num_pedido'] = Link::fromTextAndUrl($factura_numero, $factura_url)->toString();
+  
     // Obtén las fechas como objetos DateTime.
     $fecha_creacion = $entity->get('fecha_creacion')->date;
     $fecha_vencimiento = $entity->get('fecha_vencimiento')->date;
-
+  
     // Muestra solo la fecha (año-mes-día) sin la hora.
     $row['fecha_creacion'] = $fecha_creacion ? $fecha_creacion->format('Y-m-d') : $this->t('Fecha no disponible');
     $row['fecha_vencimiento'] = $fecha_vencimiento ? $fecha_vencimiento->format('Y-m-d') : $this->t('Fecha no disponible');
-
+  
     // Obtener el estado de la factura.
     $estado = $entity->get('estado')->value;
     $row['estado'] = $estado ? $this->t($estado) : $this->t('Desconocido');
-
+  
     // Obtener la información del usuario asociado.
     $usuario = $entity->get('user_id')->entity;
     $row['usuario'] = $usuario ? $usuario->toLink()->toString() : $this->t('No asignado');
-
+  
     // Mostrar el total final.
     $row['total_final'] = $entity->get('total_final')->value;
-
+  
     // Enlaces de acciones.
     $edit_url = Url::fromRoute('facturas.edit_form', ['facturas' => $entity->id()]);
     $delete_url = Url::fromRoute('facturas.delete_form', ['facturas' => $entity->id()]);
-
+  
     $row['acciones'] = [
       'data' => [
         Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
@@ -75,7 +80,7 @@ class FacturasListBuilder extends EntityListBuilder {
         Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
       ],
     ];
-
+  
     return $row;
   }
 

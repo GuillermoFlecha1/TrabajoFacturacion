@@ -36,7 +36,7 @@ class FacturaProducto extends ContentEntityBase implements ContentEntityInterfac
 
       $fields['factura_id'] = BaseFieldDefinition::create('entity_reference')
       ->setLabel(t('Factura'))
-      ->setSetting('target_type', 'facturas') // ✅ Ahora coincide con la entidad Factura
+      ->setSetting('target_type', 'facturas')
       ->setRequired(TRUE)
       ->setCardinality(1)
       ->setDisplayOptions('view', [

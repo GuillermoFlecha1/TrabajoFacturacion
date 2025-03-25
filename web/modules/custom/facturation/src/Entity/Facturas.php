@@ -183,7 +183,6 @@ class Facturas extends ContentEntityBase {
       ])
       ->setDisplayConfigurable('view', TRUE);
 
-
     return $fields;
   }
   /**
