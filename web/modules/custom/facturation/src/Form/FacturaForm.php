@@ -5,6 +5,8 @@ namespace Drupal\facturation\Form;
 use Drupal\Core\Entity\ContentEntityForm;
 use Drupal\Core\Form\FormStateInterface;
 use FPDF;
+use Drupal\Core\Url;
+
 /**
  * Formulario para gestionar Facturas.
  */
@@ -21,13 +23,6 @@ class FacturaForm extends ContentEntityForm {
       } while (\Drupal::entityQuery('facturas')->condition('num_pedido', $num_pedido_actual)->range(0, 1)->accessCheck(FALSE)->execute());
       $form_state->set('num_pedido_aleatorio', $num_pedido_actual);
       $this->entity->set('num_pedido', $num_pedido_actual);
-    }
-    
-    if (!$this->entity->isNew()) {
-      $form['num_pedido'] = [
-        '#type' => 'markup',
-        '#markup' => $this->t('<b>Número de pedido único:</b> @num_pedido', ['@num_pedido' => $num_pedido_actual]),
-      ];
     }
 
    // Prepara el valor por defecto (si es edición).
@@ -276,6 +271,9 @@ class FacturaForm extends ContentEntityForm {
         return;
     }
 
+    $factura->set('estado', 'Finalizado');
+    $factura->save();
+
     // Obtener datos del usuario
     $user = $factura->get('user_id')->entity;
     $nombre_usuario = iconv('UTF-8', 'ISO-8859-1', $user->getDisplayName());
@@ -323,11 +321,11 @@ class FacturaForm extends ContentEntityForm {
     // **Encabezado Tabla**
     $pdf->SetFont('Arial', 'B', 10);
     $pdf->SetFillColor(200, 200, 200);
-    $pdf->Cell(60, 8, 'Producto', 1, 0, 'C', true);
-    $pdf->Cell(25, 8, 'Cantidad', 1, 0, 'C', true);
-    $pdf->Cell(30, 8, 'Precio (' . chr(128) . ')', 1, 0, 'C', true);
-    $pdf->Cell(25, 8, 'Impuesto (%)', 1, 0, 'C', true);
-    $pdf->Cell(30, 8, 'Importe (' . chr(128) . ')', 1, 1, 'C', true);
+    $pdf->Cell(65, 8, 'Producto', 1, 0, 'C', true);
+    $pdf->Cell(28, 8, 'Cantidad', 1, 0, 'C', true);
+    $pdf->Cell(34, 8, 'Precio (' . chr(128) . ')', 1, 0, 'C', true);
+    $pdf->Cell(28, 8, 'Impuesto (%)', 1, 0, 'C', true);
+    $pdf->Cell(35, 8, 'Importe (' . chr(128) . ')', 1, 1, 'C', true);
 
     $pdf->SetFont('Arial', '', 10);
     $total_importe = 0;
@@ -343,11 +341,11 @@ class FacturaForm extends ContentEntityForm {
         $impuesto_total = ($importe * $impuesto) / 100;
 
         // Filas de la tabla
-        $pdf->Cell(60, 8, $nombre_producto, 1);
-        $pdf->Cell(25, 8, $cantidad, 1, 0, 'C');
-        $pdf->Cell(30, 8, number_format($precio, 2), 1, 0, 'C');
-        $pdf->Cell(25, 8, $impuesto . '%', 1, 0, 'C');
-        $pdf->Cell(30, 8, number_format($importe, 2), 1, 1, 'C');
+        $pdf->Cell(65, 8, $nombre_producto, 1);
+        $pdf->Cell(28, 8, $cantidad, 1, 0, 'C');
+        $pdf->Cell(34, 8, number_format($precio, 2), 1, 0, 'C');
+        $pdf->Cell(28, 8, $impuesto . '%', 1, 0, 'C');
+        $pdf->Cell(35, 8, number_format($importe, 2), 1, 1, 'C');
 
         $total_importe += $importe;
         $total_impuesto += $impuesto_total;
@@ -374,10 +372,25 @@ class FacturaForm extends ContentEntityForm {
     $pdf->Cell(40, 10, 'Total Final:', 1, 0, 'R', true);
     $pdf->Cell(30, 10, number_format($total_final, 2) . ' ' . chr(128), 1, 1, 'C');
 
-    // **Salida del PDF**
-    $pdf->Output('D', 'Factura_' . $num_pedido . '.pdf');
-    exit();
-}
+    // **Guardar el PDF en la carpeta "pdf" dentro de la ruta especificada**
+    $module_path = \Drupal::service('extension.list.module')->getPath('facturation');
+    $pdf_folder = $module_path . '/pdf'; // Ruta absoluta dentro de la carpeta del módulo
+    $file_path = $pdf_folder . '/Factura_' . $num_pedido . '.pdf';
+
+    // Crear la carpeta si no existe
+    if (!file_exists($pdf_folder)) {
+        mkdir($pdf_folder, 0777, true);
+    }
+
+    // Guardar el archivo en el servidor
+    $pdf->Output('F', $file_path);
+
+    \Drupal::messenger()->addMessage($this->t('Factura generada y guardada en: %path', ['%path' => $file_path]));
+  
+    $url = Url::fromRoute('entity.facturas.collection');
+    $form_state->setRedirectUrl($url);
+  }
+
 
   /**
    * Agregar producto al array asociativo en el estado del formulario.
@@ -465,6 +478,7 @@ class FacturaForm extends ContentEntityForm {
         $factura->set('user_id', $user_value);
     }
 
+    $factura->set('estado', 'Borrador');
     $factura->save();
     $factura_id = $factura->id();
 
@@ -511,6 +525,8 @@ class FacturaForm extends ContentEntityForm {
     }
 
     \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada correctamente con las cantidades actualizadas.'));
+    $url = Url::fromRoute('entity.facturas.collection');
+    $form_state->setRedirectUrl($url);
 }
 
 

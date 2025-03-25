@@ -23,9 +23,9 @@ facturas.delete_form:
     _permission: 'facturas.delete'
 
 entity.facturas.canonical:
-  path: '/admin/facturas/{facturas}'
+  path: '/admin/facturas/{num_pedido}'
   defaults:
-    _entity_view: 'facturas.full'
+    _controller: 'Drupal\facturation\Controller\FacturaController::facturaView'
     _title: 'Visualizar Facturas'
   requirements:
     _permission: 'facturas.view'

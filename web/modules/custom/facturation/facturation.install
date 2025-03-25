@@ -40,6 +40,13 @@ function facturas_schema() {
         'scale' => 2,
         'not null' => TRUE,
       ],
+      'estado' => [
+        'description' => 'Estado de la factura (Borrador, Pagada, Cancelada, etc.).',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'default' => 'Borrador',
+      ],
     ],
     'primary key' => ['id'],
     'unique keys' => [
