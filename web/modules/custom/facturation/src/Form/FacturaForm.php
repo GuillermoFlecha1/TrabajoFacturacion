@@ -5,6 +5,7 @@ namespace Drupal\facturation\Form;
 use Drupal\Core\Entity\ContentEntityForm;
 use Drupal\Core\Form\FormStateInterface;
 use FPDF;
+
 /**
  * Formulario para gestionar Facturas.
  */
@@ -21,14 +22,7 @@ class FacturaForm extends ContentEntityForm {
       } while (\Drupal::entityQuery('facturas')->condition('num_pedido', $num_pedido_actual)->range(0, 1)->accessCheck(FALSE)->execute());
       $form_state->set('num_pedido_aleatorio', $num_pedido_actual);
       $this->entity->set('num_pedido', $num_pedido_actual);
-    }
-    
-    if (!$this->entity->isNew()) {
-      $form['num_pedido'] = [
-        '#type' => 'markup',
-        '#markup' => $this->t('<b>Número de pedido único:</b> @num_pedido', ['@num_pedido' => $num_pedido_actual]),
-      ];
-    }
+    }   
 
    // Prepara el valor por defecto (si es edición).
    $default_value_User = '';
@@ -376,10 +370,21 @@ class FacturaForm extends ContentEntityForm {
     $pdf->Cell(40, 10, 'Total Final:', 1, 0, 'R', true);
     $pdf->Cell(30, 10, number_format($total_final, 2) . ' ' . chr(128), 1, 1, 'C');
 
-    // **Salida del PDF**
-    $pdf->Output('D', 'Factura_' . $num_pedido . '.pdf');
-    exit();
-}
+    // **Guardar el PDF en la carpeta "pdf" dentro de la ruta especificada**
+    $module_path = \Drupal::service('extension.list.module')->getPath('facturation');
+    $pdf_folder = $module_path . '/pdf'; // Ruta absoluta dentro de la carpeta del módulo
+    $file_path = $pdf_folder . '/Factura_' . $num_pedido . '.pdf';
+
+    // Crear la carpeta si no existe
+    if (!file_exists($pdf_folder)) {
+        mkdir($pdf_folder, 0777, true);
+    }
+
+    // Guardar el archivo en el servidor
+    $pdf->Output('F', $file_path);
+
+    \Drupal::messenger()->addMessage($this->t('Factura generada y guardada en: %path', ['%path' => $file_path]));
+  }
 
   /**
    * Agregar producto al array asociativo en el estado del formulario.
@@ -460,7 +465,7 @@ class FacturaForm extends ContentEntityForm {
     }
 
     $factura->set('estado', 'Borrador');
-    $factura->save(); // Guardar la factura con sus datos antes de insertar productos
+    $factura->save();
     $factura_id = $factura->id();
     
       // 🔹 Obtener los productos actualizados desde el formulario (los editados en la tabla)

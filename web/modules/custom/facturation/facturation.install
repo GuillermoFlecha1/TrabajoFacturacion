@@ -99,6 +99,7 @@ function facturas_schema() {
       'factura' => [
         'table' => 'facturas',
         'columns' => ['factura_id' => 'id'],
+        'on delete' => 'CASCADE',
       ],
       'producto' => [
         'table' => 'producto',

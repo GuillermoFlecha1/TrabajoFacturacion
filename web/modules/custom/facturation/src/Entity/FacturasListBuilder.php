@@ -61,6 +61,14 @@ class FacturasListBuilder extends EntityListBuilder {
     // Obtener el estado de la factura.
     $estado = $entity->get('estado')->value;
     $row['estado'] = $estado ? $this->t($estado) : $this->t('Desconocido');
+
+    if($estado == 'Finalizado'){
+      $factura_numero = $entity->get('num_pedido')->value;
+      $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $factura_numero]);
+      $row['num_pedido'] = Link::fromTextAndUrl($factura_numero, $factura_url)->toString();
+    }elseif($estado == 'Borrador'){
+      $row['num_pedido'] = $this->t('Número no asociado.');
+    }
   
     // Obtener la información del usuario asociado.
     $usuario = $entity->get('user_id')->entity;
