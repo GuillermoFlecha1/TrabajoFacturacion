@@ -38,10 +38,10 @@ entity.facturas.collection:
   requirements:
     _permission: 'facturas.view'
 
-facturas.generar_pdf:
-  path: '/admin/facturas/{facturas}/generar-pdf'
+facturas.ver_pdf:
+  path: '/facturas/{facturas}/ver-pdf'
   defaults:
-    _controller: '\Drupal\facturation\Controller\GenerarController::generarPDF'
-    _title: 'Generar PDF de Factura'
+    _controller: 'Drupal\facturation\Controller\GenerarController::visualizarPDF'
+    _title: 'Ver Factura PDF'
   requirements:
     _permission: 'access content'

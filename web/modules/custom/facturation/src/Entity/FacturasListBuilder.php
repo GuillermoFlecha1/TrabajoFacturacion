@@ -42,10 +42,17 @@ class FacturasListBuilder extends EntityListBuilder {
     // ID de la factura.
     $row['id'] = $entity->id();
 
-    // Número de pedido como enlace.
-    $factura_numero = $entity->get('num_pedido')->value;
-    $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $factura_numero]);
-    $row['num_pedido'] = Link::fromTextAndUrl($factura_numero, $factura_url)->toString();
+    // Estado de la factura.
+    $estado = $entity->get('estado')->value;
+    
+    // Número de pedido (se oculta si el estado es "Borrador").
+    if ($estado === 'Borrador') {
+      $row['num_pedido'] = $this->t('Número no disponible');
+    } else {
+      $factura_numero = $entity->get('num_pedido')->value;
+      $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $factura_numero]);
+      $row['num_pedido'] = Link::fromTextAndUrl($factura_numero, $factura_url)->toString();
+    }
 
     // Fechas de creación y vencimiento.
     $fecha_creacion = $entity->get('fecha_creacion')->date;
@@ -56,7 +63,6 @@ class FacturasListBuilder extends EntityListBuilder {
     $row['fecha_vencimiento'] = $fecha_vencimiento ? $fecha_vencimiento->format('d-m-Y') : $this->t('Fecha no disponible');
 
     // Estado de la factura.
-    $estado = $entity->get('estado')->value;
     $row['estado'] = $estado ? $this->t($estado) : $this->t('Desconocido');
 
     // Obtener la información del usuario asociado.
@@ -66,26 +72,19 @@ class FacturasListBuilder extends EntityListBuilder {
     // Mostrar el total final.
     $row['total_final'] = $entity->get('total_final')->value . '€';
 
-    // Definir los enlaces de acciones.
-    $edit_url = Url::fromRoute('facturas.edit_form', ['facturas' => $entity->id()]);
-    $delete_url = Url::fromRoute('facturas.delete_form', ['facturas' => $entity->id()]);
-
-    // Si el estado es "Finalizado", añadimos el botón de generar PDF en lugar de solo el enlace.
-    // Si el estado es "Finalizado", añadimos el enlace para generar PDF.
+    // Si el estado es "Finalizado", solo mostramos el botón de Visualizar PDF.
     if ($estado == 'Finalizado') {
-      // Ruta para generar el PDF.
-      $form_url = Url::fromRoute('facturas.generar_pdf', ['facturas' => $entity->id()]);
-
+      $form_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $entity->id()], ['attributes' => ['target' => '_blank']]);
       $row['acciones'] = [
           'data' => [
-              Link::fromTextAndUrl($this->t('Generar PDF'), $form_url)->toRenderable(),
-              ['#markup' => ' | '],
-              Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
-              ['#markup' => ' | '],
-              Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
+              Link::fromTextAndUrl($this->t('Visualizar PDF'), $form_url)->toRenderable(),
           ],
       ];
     } else {
+      // Definir los enlaces de acciones para otros estados.
+      $edit_url = Url::fromRoute('facturas.edit_form', ['facturas' => $entity->id()]);
+      $delete_url = Url::fromRoute('facturas.delete_form', ['facturas' => $entity->id()]);
+
       $row['acciones'] = [
           'data' => [
               Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
@@ -94,7 +93,6 @@ class FacturasListBuilder extends EntityListBuilder {
           ],
       ];
     }
-
 
     return $row;
   }
