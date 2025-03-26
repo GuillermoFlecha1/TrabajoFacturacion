@@ -1,4 +1,10 @@
-function facturas_schema() {
+/**
+ * Implements hook_schema().
+ */
+function factura_install_schema() {
+  $schema = [];
+
+  // Definición de la tabla facturas
   $schema['facturas'] = [
     'description' => 'Tabla que almacena las facturas.',
     'fields' => [
@@ -15,7 +21,7 @@ function facturas_schema() {
       ],
       'fecha_creacion' => [
         'description' => 'Fecha de creación de la factura.',
-        'type' => 'date', 
+        'type' => 'date',
         'not null' => TRUE,
       ],
       'num_pedido' => [
@@ -25,7 +31,7 @@ function facturas_schema() {
       ],
       'fecha_vencimiento' => [
         'description' => 'Fecha de vencimiento de la factura.',
-        'type' => 'date', 
+        'type' => 'date',
         'not null' => TRUE,
       ],
       'user_id' => [
@@ -41,7 +47,7 @@ function facturas_schema() {
         'not null' => TRUE,
       ],
       'estado' => [
-        'description' => 'Estado de la factura (Borrador, Pagada, Cancelada, etc.).',
+        'description' => 'Estado de la factura (Borrador, Finalizada).',
         'type' => 'varchar',
         'length' => 50,
         'not null' => TRUE,
@@ -64,7 +70,7 @@ function facturas_schema() {
     ],
   ];
 
-  // Nueva tabla para relación facturas-productos
+  // Definición de la tabla factura_productos
   $schema['factura_productos'] = [
     'description' => 'Tabla que almacena los productos de cada factura.',
     'fields' => [

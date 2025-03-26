@@ -37,3 +37,11 @@ entity.facturas.collection:
     _title: 'Lista de Facturas'
   requirements:
     _permission: 'facturas.view'
+
+facturas.generar_pdf:
+  path: '/admin/facturas/{facturas}/generar-pdf'
+  defaults:
+    _controller: '\Drupal\facturation\Controller\GenerarController::generarPDF'
+    _title: 'Generar PDF de Factura'
+  requirements:
+    _permission: 'access content'
