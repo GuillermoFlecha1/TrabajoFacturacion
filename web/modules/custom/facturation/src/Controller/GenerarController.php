@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\facturation\Utils\PdfWithRotation;
 
 class GenerarController extends ControllerBase {
 
@@ -53,15 +54,47 @@ class GenerarController extends ControllerBase {
     if (!file_exists($pdf_path)) {
       throw new FileNotFoundException("El PDF de la factura no se encuentra: {$pdf_path}");
     }
-  
-    // Leer el contenido del archivo
+   // Si la factura es "Rectificativa", agregar marca de agua
+    if ($factura->get('estado')->value === 'Rectificada') {
+      $pdf = new PdfWithRotation();
+      $pdf->AddPage();
+      $pdf->setSourceFile($pdf_path);
+      $tplIdx = $pdf->importPage(1);
+      $pdf->useTemplate($tplIdx, 0, 0);
+
+      // Configurar la marca de agua
+      $pdf->SetFont('Arial', 'B', 70); // Aumentar el tamaño de la fuente
+      $pdf->SetTextColor(0, 0, 0); // Color negro
+
+      // Obtener el tamaño de la página
+      $pageWidth = $pdf->GetPageWidth();
+      $pageHeight = $pdf->GetPageHeight();
+
+      // Calcular posición centrada
+      $x = $pageWidth / 2;
+      $y = $pageHeight / 2;
+
+      // Aplicar la rotación y colocar el texto en el centro
+      $pdf->Rotate(45, $x, $y);
+      $pdf->Text($x - 80, $y, 'RECTIFICADA'); // Ajustar para centrar el texto
+      $pdf->Rotate(0);
+
+      // Guardar el nuevo PDF con la marca de agua
+      $pdf_temp_path = DRUPAL_ROOT . "/modules/custom/facturation/pdf/factura_{$factura_id}_rectificada.pdf";
+      $pdf->Output($pdf_temp_path, 'F');
+
+      // Leer el contenido del PDF modificado
+      $pdf_content = file_get_contents($pdf_temp_path);
+    } else {
+    // Leer el PDF original si no necesita marca de agua
     $pdf_content = file_get_contents($pdf_path);
-  
-    // Responder con el PDF en modo inline
+    }
+
+    // Responder con el PDF
     $response = new Response($pdf_content);
     $response->headers->set('Content-Type', 'application/pdf');
     $response->headers->set('Content-Disposition', 'inline; filename="factura_' . $factura_id . '.pdf"');
-  
+
     return $response;
   }  
 

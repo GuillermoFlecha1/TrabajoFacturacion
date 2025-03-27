@@ -628,6 +628,5 @@ class FacturaForm extends ContentEntityForm {
     }
 
     return 0;
-  }
-    
+  }   
 }

@@ -19,7 +19,8 @@
         "drupal/core-composer-scaffold": "^11.1",
         "drupal/core-project-message": "^11.1",
         "drupal/core-recommended": "^11.1",
-        "setasign/fpdf": "^1.8"
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6"
     },
     "conflict": {
         "drupal/drupal": "*"
