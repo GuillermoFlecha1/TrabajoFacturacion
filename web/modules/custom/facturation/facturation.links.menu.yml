@@ -1,0 +1,7 @@
+facturation.admin:
+  title: 'Facturación'
+  description: 'Administrar facturas y configuraciones'
+  route_name: entity.facturas.collection
+  parent: system.admin
+  weight: 8
+  menu_name: administration

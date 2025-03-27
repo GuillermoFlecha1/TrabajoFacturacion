@@ -75,7 +75,6 @@ class FacturaForm extends ContentEntityForm {
       }
       $form_state->set('productos', $productos);
     }
-   
     
     $form['producto_cantidad_container'] = [
       '#type' => 'container',
@@ -87,12 +86,11 @@ class FacturaForm extends ContentEntityForm {
     '#type' => 'entity_autocomplete',
     '#title' => $this->t('Producto'),
     '#target_type' => 'producto', 
-    '#selection_handler' => 'default', 
+    '#selection_handler' => 'default',
     '#attributes' => [
       'placeholder' => $this->t('Escribe para buscar...'),
     ],
   ];
-
   
   $form['producto_cantidad_container']['cantidad'] = [
       '#type' => 'number',
@@ -150,13 +148,18 @@ class FacturaForm extends ContentEntityForm {
 
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['producto'] = [
         '#markup' => '<strong>' . $this->getProductoOptions()[$producto['producto_id']] . '</strong>',
-        '#allowed_tags' => ['strong'], // Permitir la etiqueta <strong>
+        '#allowed_tags' => ['strong'],
+        '#wrapper_attributes' => [
+        'style' => 'width: 130px; white-space: nowrap;',
+        ], 
       ];
+
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['producto_id'] = [
         '#type' => 'hidden',
         '#value' => $producto['producto_id'],
-        '#wrapper_attributes' => ['style' => 'display: none;'], // Oculta el campo sin afectar el diseño
+        '#wrapper_attributes' => ['style' => 'display: none;'],
       ];
+
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['cantidad'] = [
           '#type' => 'number',
           '#default_value' => $producto['cantidad'],
@@ -167,21 +170,25 @@ class FacturaForm extends ContentEntityForm {
               'wrapper' => 'productos-agregados-wrapper',
           ],
       ];
+
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['precio'] = [
           '#type' => 'textfield',
           '#default_value' => number_format($precio, 2),
           '#disabled' => TRUE,
       ];
+
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['impuesto'] = [
           '#type' => 'textfield',
           '#default_value' => number_format($impuesto, 2) . '%',
           '#disabled' => TRUE,
       ];
+
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['importe'] = [
           '#type' => 'textfield',
           '#default_value' => number_format($importe, 2),
           '#disabled' => TRUE,
       ];
+
       $form['productos_agregados_wrapper']['productos_agregados'][$index]['acciones'] = [
           '#type' => 'submit',
           '#value' => $this->t('Eliminar'),
@@ -205,7 +212,7 @@ class FacturaForm extends ContentEntityForm {
     }
     $form['generar_pdf'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Generar PDF'),
+      '#value' => $this->t('Finalizar Factura'),
       '#submit' => ['::generarFacturaPDF'],
       '#attributes' => ['style' => 'margin-top: 20px;'],
     ];
@@ -217,7 +224,6 @@ class FacturaForm extends ContentEntityForm {
   public function ajaxActualizarTabla(array &$form, FormStateInterface $form_state) {
     return $form['productos_agregados_wrapper'];
   }
-
 
   /**
    * Validación del campo cantidad.
@@ -372,25 +378,29 @@ class FacturaForm extends ContentEntityForm {
     $pdf->Cell(40, 10, 'Total Final:', 1, 0, 'R', true);
     $pdf->Cell(30, 10, number_format($total_final, 2) . ' ' . chr(128), 1, 1, 'C');
 
-    // **Guardar el PDF en la carpeta "pdf" dentro de la ruta especificada**
-    $module_path = \Drupal::service('extension.list.module')->getPath('facturation');
-    $pdf_folder = $module_path . '/pdf'; // Ruta absoluta dentro de la carpeta del módulo
-    $file_path = $pdf_folder . '/Factura_' . $num_pedido . '.pdf';
+    // **Ruta donde se guardará el PDF**
+    $project_root = dirname(DRUPAL_ROOT); // Una carpeta por encima de web
+    $pdf_folder = $project_root . '/private/pdf';
 
     // Crear la carpeta si no existe
     if (!file_exists($pdf_folder)) {
         mkdir($pdf_folder, 0777, true);
     }
 
+    $file_name = 'factura_' . $factura_id . '.pdf';
+    $file_path = $pdf_folder . '/' . $file_name;
+
     // Guardar el archivo en el servidor
     $pdf->Output('F', $file_path);
 
-    \Drupal::messenger()->addMessage($this->t('Factura generada y guardada en: %path', ['%path' => $file_path]));
-  
+    // Redirigir a la lista de facturas
     $url = Url::fromRoute('entity.facturas.collection');
     $form_state->setRedirectUrl($url);
-  }
 
+    // Mensaje de confirmación
+    \Drupal::messenger()->addMessage($this->t('Factura generada y guardada en: %path', ['%path' => $file_path]));
+    return $file_path;
+  }
 
   /**
    * Agregar producto al array asociativo en el estado del formulario.
@@ -485,6 +495,11 @@ class FacturaForm extends ContentEntityForm {
     // 🔹 Obtener los productos actualizados desde el formulario (los editados en la tabla)
     $productos_actualizados = $form_state->getValue(['productos_agregados']) ?? [];
 
+    // Verificar que productos_actualizados sea un array y no una cadena
+    if (!is_array($productos_actualizados)) {
+        $productos_actualizados = [];
+    }
+
     // 🔹 Eliminar productos anteriores y guardar los nuevos
     \Drupal::database()->delete('factura_productos')
         ->condition('factura_id', $factura_id)
@@ -493,6 +508,7 @@ class FacturaForm extends ContentEntityForm {
     $total_importe = 0;
     $total_impuesto = 0;
 
+    // 🔹 Asegurarse de que productos_actualizados tenga valores
     foreach ($productos_actualizados as $index => $producto) {
         $producto_id = $producto['producto_id'];
         $cantidad = $producto['cantidad'];
@@ -524,12 +540,13 @@ class FacturaForm extends ContentEntityForm {
         $factura->save();
     }
 
+    // Mensaje de éxito
     \Drupal::messenger()->addMessage($this->t('La factura ha sido guardada correctamente con las cantidades actualizadas.'));
+    
+    // Redirigir a la lista de facturas
     $url = Url::fromRoute('entity.facturas.collection');
     $form_state->setRedirectUrl($url);
-}
-
-
+  }
 
   private function getUserOptions() {
     $options = [];
