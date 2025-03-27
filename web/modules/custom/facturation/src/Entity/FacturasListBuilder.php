@@ -72,16 +72,30 @@ class FacturasListBuilder extends EntityListBuilder {
     // Mostrar el total final.
     $row['total_final'] = $entity->get('total_final')->value . '€';
 
-    // Si el estado es "Finalizado", solo mostramos el botón de Visualizar PDF.
-    if ($estado == 'Finalizado') {
-      $form_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $entity->id()], ['attributes' => ['target' => '_blank']]);
+    // Si el estado es "Rectificada" o "Rectificativa", solo mostramos el botón de Visualizar PDF.
+    if ($estado == 'Rectificada' || $estado == 'Rectificativa') {
+      $pdf_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $entity->id()], ['attributes' => ['target' => '_blank']]);
       $row['acciones'] = [
           'data' => [
-              Link::fromTextAndUrl($this->t('Visualizar PDF'), $form_url)->toRenderable(),
+              Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable(),
           ],
       ];
-    } else {
-      // Definir los enlaces de acciones para otros estados.
+    }
+    // Si el estado es "Finalizado", se muestra Visualizar PDF y Rectificar.
+    elseif ($estado == 'Finalizado') {
+      $pdf_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $entity->id()], ['attributes' => ['target' => '_blank']]);
+      $rectificar_url = Url::fromRoute('facturas.rectificar', ['facturas' => $entity->id()]);
+
+      $row['acciones'] = [
+          'data' => [
+              Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable(),
+              ['#markup' => ' | '],
+              Link::fromTextAndUrl($this->t('Rectificar'), $rectificar_url)->toRenderable(),
+          ],
+      ];
+    } 
+    // Para otros estados, se muestra Editar y Eliminar.
+    else {
       $edit_url = Url::fromRoute('facturas.edit_form', ['facturas' => $entity->id()]);
       $delete_url = Url::fromRoute('facturas.delete_form', ['facturas' => $entity->id()]);
 

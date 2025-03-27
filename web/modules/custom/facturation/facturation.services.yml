@@ -1,4 +1,0 @@
-services:
-  facturation.pdf_service:
-    class: Drupal\facturation\Service\PDFService
-    arguments: ['@file_system', '@stream_wrapper_manager']

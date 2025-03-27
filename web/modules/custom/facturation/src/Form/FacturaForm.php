@@ -393,11 +393,11 @@ class FacturaForm extends ContentEntityForm {
     // Guardar el archivo en el servidor
     $pdf->Output('F', $file_path);
 
-    \Drupal::messenger()->addMessage($this->t('Factura generada y guardada en: %path', ['%path' => $file_path]));
-    return $file_path;
-
     $url = Url::fromRoute('entity.facturas.collection');
     $form_state->setRedirectUrl($url);
+    
+    \Drupal::messenger()->addMessage($this->t('Factura generada y guardada en: %path', ['%path' => $file_path]));
+    return $file_path;
   }
 
   /**

@@ -45,3 +45,12 @@ facturas.ver_pdf:
     _title: 'Ver Factura PDF'
   requirements:
     _permission: 'access content'
+
+facturas.rectificar:
+  path: '/admin/facturas/{facturas}/rectificar'
+  defaults:
+    _controller: '\Drupal\facturation\Controller\GenerarController::rectificar'
+    _title: 'Rectificar Factura'
+  requirements:
+    _permission: 'edit any facturation entity'
+
