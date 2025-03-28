@@ -37,3 +37,19 @@ entity.facturas.collection:
     _title: 'Lista de Facturas'
   requirements:
     _permission: 'facturas.view'
+
+facturas.ver_pdf:
+  path: '/facturas/{facturas}/ver-pdf'
+  defaults:
+    _controller: 'Drupal\facturation\Controller\GenerarController::visualizarPDF'
+    _title: 'Ver Factura PDF'
+  requirements:
+    _permission: 'access content'
+
+facturas.rectificar:
+  path: '/admin/facturas/{facturas}/rectificar'
+  defaults:
+    _controller: '\Drupal\facturation\Controller\GenerarController::rectificar'
+    _title: 'Rectificar Factura'
+  requirements:
+    _permission: 'edit any facturation entity'

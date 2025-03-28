@@ -172,7 +172,7 @@ class Facturas extends ContentEntityBase {
       ])
       ->setDisplayConfigurable('view', TRUE);
 
-      $fields['estado'] = BaseFieldDefinition::create('string')
+    $fields['estado'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Estado'))
       ->setDescription(t('El estado de la factura.'))
       ->setRequired(TRUE)
@@ -182,7 +182,6 @@ class Facturas extends ContentEntityBase {
         'weight' => 4,
       ])
       ->setDisplayConfigurable('view', TRUE);
-
 
     return $fields;
   }
@@ -200,5 +199,4 @@ class Facturas extends ContentEntityBase {
   public static function getCurrentDate() {
     return date('Y-m-d');
   }
-
 }

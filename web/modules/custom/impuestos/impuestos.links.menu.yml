@@ -1,0 +1,7 @@
+impuestos.admin:
+  title: 'Impuestos'
+  description: 'Administrar impuestos y configuraciones'
+  route_name: entity.impuestos.collection
+  parent: system.admin
+  weight: 6
+  menu_name: administration

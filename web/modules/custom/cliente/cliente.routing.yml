@@ -1,0 +1,9 @@
+cliente.form:
+  path: '/admin/cliente/add'
+  defaults:
+    _form: '\Drupal\cliente\Form\Cliente'
+    _title: 'Crear nuevo usuario'
+  requirements:
+    _permission: 'administer users'
+  options:
+    _admin_route: TRUE
