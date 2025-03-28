@@ -25,78 +25,90 @@ class GenerarController extends ControllerBase {
   public function visualizarPDF($facturas) {
     // Cargar la factura por ID.
     $factura = Facturas::load($facturas);
-    
     if (!$factura) {
       throw new NotFoundHttpException('Factura no encontrada.');
     }
   
-    // Si la factura es "Rectificativa", buscar la original
-    if ($factura->get('estado')->value === 'Rectificativa') {
-      $factura_original = \Drupal::entityTypeManager()
-        ->getStorage('facturas')
-        ->loadByProperties(['estado' => 'Rectificada', 'num_pedido' => $factura->get('num_pedido')->value - 1]);
+    $factura_id = $factura->id();
+    $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}.pdf";
   
-      if (!empty($factura_original)) {
-        $factura = reset($factura_original);
+    // Verificar si la factura es "Rectificativa" y obtener la factura original.
+    if ($factura->get('estado')->value === 'Rectificativa') {
+      $original_num = $factura->get('num_pedido')->value - 1;
+      $facturas_originales = \Drupal::entityTypeManager()
+        ->getStorage('facturas')
+        ->loadByProperties([
+          'estado' => 'Rectificada',
+          'num_pedido' => $original_num,
+        ]);
+      $factura_original = !empty($facturas_originales) ? reset($facturas_originales) : NULL;
+  
+      // Si encontramos la factura original, usamos su ID para el PDF base.
+      if ($factura_original) {
+        $original_factura_id = $factura_original->id();
+        $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$original_factura_id}.pdf";
+      } else {
+        throw new NotFoundHttpException('Factura original no encontrada.');
       }
     }
   
-    // Obtener el ID de la factura original o rectificativa
-    $factura_id = $factura->id();
-  
-    // Ruta del PDF basado en la factura original
-    $pdf_path = DRUPAL_ROOT . "/modules/custom/facturation/pdf/factura_{$factura_id}.pdf";
-  
-    // Log de depuración
-    \Drupal::logger('facturation')->notice('Buscando PDF en: @path', ['@path' => $pdf_path]);
-  
-    // Verificar si el archivo existe
+    // Verificar si el PDF base existe antes de proceder.
     if (!file_exists($pdf_path)) {
-      throw new FileNotFoundException("El PDF de la factura no se encuentra: {$pdf_path}");
+      throw new FileNotFoundException("El PDF base de la factura no se encuentra: {$pdf_path}");
     }
-   // Si la factura es "Rectificativa", agregar marca de agua
+  
+    // Crear la instancia del PDF.
+    $pdf = new PdfWithRotation();
+    $pdf->AddPage();
+    $pdf->setSourceFile($pdf_path);
+    $tplIdx = $pdf->importPage(1);
+    $pdf->useTemplate($tplIdx, 0, 0);
+  
     if ($factura->get('estado')->value === 'Rectificada') {
-      $pdf = new PdfWithRotation();
-      $pdf->AddPage();
-      $pdf->setSourceFile($pdf_path);
-      $tplIdx = $pdf->importPage(1);
-      $pdf->useTemplate($tplIdx, 0, 0);
-
-      // Configurar la marca de agua
-      $pdf->SetFont('Arial', 'B', 70); // Aumentar el tamaño de la fuente
-      $pdf->SetTextColor(0, 0, 0); // Color negro
-
-      // Obtener el tamaño de la página
+      // Agregar la marca de agua "RECTIFICADA".
+      $pdf->SetFont('Arial', 'B', 70);
+      $pdf->SetTextColor(0, 0, 0);
       $pageWidth = $pdf->GetPageWidth();
       $pageHeight = $pdf->GetPageHeight();
-
-      // Calcular posición centrada
       $x = $pageWidth / 2;
       $y = $pageHeight / 2;
-
-      // Aplicar la rotación y colocar el texto en el centro
       $pdf->Rotate(45, $x, $y);
-      $pdf->Text($x - 80, $y, 'RECTIFICADA'); // Ajustar para centrar el texto
+      $pdf->Text($x - 80, $y, 'RECTIFICADA');
       $pdf->Rotate(0);
-
-      // Guardar el nuevo PDF con la marca de agua
-      $pdf_temp_path = DRUPAL_ROOT . "/modules/custom/facturation/pdf/factura_{$factura_id}_rectificada.pdf";
+  
+      // Guardar el nuevo PDF con la marca de agua.
+      $pdf_temp_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}_rectificada.pdf";
       $pdf->Output($pdf_temp_path, 'F');
-
-      // Leer el contenido del PDF modificado
       $pdf_content = file_get_contents($pdf_temp_path);
-    } else {
-    // Leer el PDF original si no necesita marca de agua
-    $pdf_content = file_get_contents($pdf_path);
     }
-
-    // Responder con el PDF
+    elseif ($factura->get('estado')->value === 'Rectificativa') {
+      // Obtener el número de pedido original.
+      $num_pedido_original = isset($factura_original) ? $factura_original->get('num_pedido')->value : 'N/A';
+  
+      // Agregar la línea "Factura Rectificativa de (num pedido original)" en la misma página.
+      $pdf->SetFont('Arial', 'B', 12);
+      $pdf->SetTextColor(0, 0, 0);
+      
+      // Aquí ajustamos la posición en la misma página de la factura
+      $pdf->SetXY(10, 250); // Ajusta el valor Y para no sobreponer el contenido.
+      $pdf->Cell(0, 10, "Factura Rectificativa de {$num_pedido_original}", 0, 1);
+  
+      // Guardar el nuevo PDF de la factura rectificativa.
+      $pdf_new_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}_rectificativa.pdf";
+      $pdf->Output($pdf_new_path, 'F');
+      $pdf_content = file_get_contents($pdf_new_path);
+    }
+    else {
+      // Para otros estados, devolver el PDF base sin cambios.
+      $pdf_content = file_get_contents($pdf_path);
+    }
+  
+    // Devolver el PDF en la respuesta HTTP.
     $response = new Response($pdf_content);
     $response->headers->set('Content-Type', 'application/pdf');
     $response->headers->set('Content-Disposition', 'inline; filename="factura_' . $factura_id . '.pdf"');
-
     return $response;
-  }  
+  }      
 
   /**
    * Método para rectificar una factura.

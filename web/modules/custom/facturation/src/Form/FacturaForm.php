@@ -379,8 +379,8 @@ class FacturaForm extends ContentEntityForm {
     $pdf->Cell(30, 10, number_format($total_final, 2) . ' ' . chr(128), 1, 1, 'C');
 
     // **Ruta donde se guardará el PDF**
-    $module_path = \Drupal::service('extension.list.module')->getPath('facturation');
-    $pdf_folder = $module_path . '/pdf';
+    $project_root = dirname(DRUPAL_ROOT); // Una carpeta por encima de web
+    $pdf_folder = $project_root . '/private/pdf';
 
     // Crear la carpeta si no existe
     if (!file_exists($pdf_folder)) {

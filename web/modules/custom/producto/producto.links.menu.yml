@@ -1,0 +1,7 @@
+producto.admin:
+  title: 'Producto'
+  description: 'Administrar productos y configuraciones'
+  route_name: entity.producto.collection
+  parent: system.admin
+  weight: 7
+  menu_name: administration
