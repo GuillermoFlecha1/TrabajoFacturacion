@@ -101,16 +101,17 @@ class Facturas extends ContentEntityBase {
       ->setDisplayConfigurable('view', TRUE);
   
     // Número de Pedido (único, generado aleatoriamente).
-    $fields['num_pedido'] = BaseFieldDefinition::create('integer')
+    $fields['num_pedido'] = BaseFieldDefinition::create('string')
     ->setLabel(t('Número de Pedido'))
     ->setDescription(t('Número de pedido único generado aleatoriamente.'))
     ->setRequired(TRUE)
+    ->setSetting('max_length', 255)
     ->setDisplayOptions('view', [
       'label' => 'above',
-      'type' => 'number',
-      'weight' => 1, // Orden en la vista
+      'type' => 'string',
+      'weight' => 1, // Orden en la vista.
       'settings' => [
-        'readonly' => TRUE, // Mostrarlo como solo lectura en la vista.
+        'readonly' => TRUE,
       ],
     ])
     ->setDisplayConfigurable('view', TRUE);

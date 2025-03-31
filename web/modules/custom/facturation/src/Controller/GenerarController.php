@@ -29,36 +29,33 @@ class GenerarController extends ControllerBase {
       throw new NotFoundHttpException('Factura no encontrada.');
     }
   
-    // Si la factura es "Rectificativa", buscar la original
+    // Si la factura es "Rectificativa", se intenta buscar la original.
     if ($factura->get('estado')->value === 'Rectificativa') {
+      // Se asume que el número de pedido de la rectificativa es "BIV-<n>"
+      // y la original debe tener "BIA-<n>".
+      $num_pedido = $factura->get('num_pedido')->value;
+      // Extraer el número sin prefijo (eliminar "BIV-").
+      $numero = preg_replace('/^BIV-/', '', $num_pedido);
+      // Buscar la factura original con estado "Rectificada" y número "BIA-<n>".
       $factura_original = \Drupal::entityTypeManager()
         ->getStorage('facturas')
-        ->loadByProperties(['estado' => 'Rectificada', 'num_pedido' => $factura->get('num_pedido')->value - 1]);
+        ->loadByProperties(['estado' => 'Rectificada', 'num_pedido' => 'BIA-' . $numero]);
   
       if (!empty($factura_original)) {
         $factura = reset($factura_original);
       }
     }
   
-    // Obtener el ID de la factura original o rectificativa
     $factura_id = $factura->id();
-  
-    // Ruta del PDF basado en la factura original
-    
+    // La ruta del PDF se construye igual que en FacturaForm.
     $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}.pdf";
-  
-    // Log de depuración
     \Drupal::logger('facturation')->notice('Buscando PDF en: @path', ['@path' => $pdf_path]);
   
-    // Verificar si el archivo existe
     if (!file_exists($pdf_path)) {
       throw new FileNotFoundException("El PDF de la factura no se encuentra: {$pdf_path}");
     }
   
-    // Leer el contenido del archivo
     $pdf_content = file_get_contents($pdf_path);
-  
-    // Responder con el PDF en modo inline
     $response = new Response($pdf_content);
     $response->headers->set('Content-Type', 'application/pdf');
     $response->headers->set('Content-Disposition', 'inline; filename="factura_' . $factura_id . '.pdf"');
@@ -67,89 +64,70 @@ class GenerarController extends ControllerBase {
   }  
 
   /**
-   * Método para rectificar una factura.
+   * Rectifica una factura.
    *
    * Realiza la duplicación de la factura, actualizando el estado de la
    * factura original a "Rectificada" y la copia a "Rectificativa", asignándole
-   * un nuevo número de pedido.
-   *
-   * @param \Drupal\facturation\Entity\Facturas $facturas
-   *   La factura a rectificar, inyectada a partir de la ruta.
-   *
-   * @return \Symfony\Component\HttpFoundation\RedirectResponse
-   *   Redirección a la lista de facturas.
+   * el mismo número base.
    */
   public function rectificar(Facturas $facturas) {
-    // Actualiza el estado de la factura original a "Rectificada".
+    // Obtener el número actual de la factura original (se asume en formato BI-<n>).
+    $original = $facturas->get('num_pedido')->value;
+    // Extraer el número sin prefijo.
+    $numero = preg_replace('/^BI-/', '', $original);
+    // Actualizar la factura original: asignarle el prefijo BIA- y cambiar estado.
+    $facturas->set('num_pedido', 'BIA-' . $numero);
     $facturas->set('estado', 'Rectificada');
     $facturas->save();
   
-    // Clona la factura original para crear la nueva con estado "Rectificativa".
+    // Clonar la factura original para crear la factura rectificativa.
     $factura_rectificativa = $facturas->createDuplicate();
-    
-    // Generar el nuevo número de pedido basado en la factura original.
-    $nuevo_num_pedido = $facturas->get('num_pedido')->value + 1;
-    $factura_rectificativa->set('num_pedido', $nuevo_num_pedido);
-    
-    // Asignar el estado "Rectificativa".
+    $factura_rectificativa->set('num_pedido', 'BIV-' . $numero);
     $factura_rectificativa->set('estado', 'Rectificativa');
-    
-    // Guarda la factura "Rectificativa".
     $factura_rectificativa->save();
     
-    // Obtener los productos asociados y duplicarlos en la factura rectificativa.
+    // Duplicar productos de la factura original a la rectificativa.
     $this->duplicarProductos($facturas->id(), $factura_rectificativa->id());
   
-    // Segunda duplicación: Crear una copia de la factura rectificativa con estado "Borrador".
+    // Crear una copia en borrador de la factura rectificativa.
+    // Aquí, en lugar de dejar que al finalizar se reasigne usando el nuevo ID,
+    // asignamos explícitamente el número deseado.
     $factura_borrador = $factura_rectificativa->createDuplicate();
-    
-    // Mantener el mismo número de pedido de la rectificativa.
-    $factura_borrador->set('num_pedido', $nuevo_num_pedido);
-    
-    // Asignar el estado "Borrador".
+    // Asignamos el número que esperamos: en este ejemplo, queremos que sea BI-<n+1>.
+    // Por ello, incrementamos el número base en 1.
+    $nuevo_num = $numero + 1;
+    $factura_borrador->set('num_pedido', 'BI-' . $nuevo_num);
     $factura_borrador->set('estado', 'Borrador');
-    
-    // Guarda la factura en estado "Borrador".
     $factura_borrador->save();
-    
-    // Duplicar los productos en la factura "Borrador".
     $this->duplicarProductos($factura_rectificativa->id(), $factura_borrador->id());
   
-    $this->messenger()->addStatus($this->t('Se ha creado una factura rectificativa con el número de pedido @num y una copia en borrador.', [
-      '@num' => $nuevo_num_pedido
+    $this->messenger()->addStatus($this->t('Se ha creado una factura rectificativa con el número de pedido BIV-%num y una copia en borrador con BI-%num2.', [
+      '%num' => $numero,
+      '%num2' => $nuevo_num,
     ]));
   
-    // Redirige a la lista de facturas.
     return new RedirectResponse(Url::fromRoute('entity.facturas.collection')->toString());
   }
   
   /**
-   * Duplica los productos de una factura original y los asigna a la nueva factura.
+   * Duplica los productos de una factura.
    */
   private function duplicarProductos($factura_original_id, $nueva_factura_id) {
-    // Cargar los productos de la factura original.
     $factura_productos = \Drupal::entityTypeManager()
       ->getStorage('factura_producto')
       ->loadByProperties(['factura_id' => $factura_original_id]);
   
     foreach ($factura_productos as $factura_producto) {
-      // Crear una nueva entidad factura_producto duplicando la original.
       $nuevo_producto = $factura_producto->createDuplicate();
       $nuevo_producto->set('factura_id', $nueva_factura_id);
       $nuevo_producto->save();
     }
-  }   
+  }
 
   /**
-   * Función para generar un nuevo número de pedido.
-   *
-   * Puedes personalizar esta función de acuerdo a tus reglas de negocio.
-   *
-   * @return string
-   *   El nuevo número de pedido.
+   * (Opcional) Genera un nuevo número de pedido.
    */
   protected function generarNuevoNumeroPedido() {
-    // Ejemplo simple: concatenar "PED-" con la fecha y un número aleatorio.
     return 'PED-' . date('YmdHis') . '-' . rand(100, 999);
   }
 }
