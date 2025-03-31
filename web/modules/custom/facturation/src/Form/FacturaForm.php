@@ -296,9 +296,14 @@ class FacturaForm extends ContentEntityForm {
         ->getStorage('factura_producto')
         ->loadByProperties(['factura_id' => $factura_id]);
 
-    // Crear instancia de FPDF
-    $pdf = new FPDF();
+    // Sustituir la creación del objeto FPDF por PdfWithRotation:
+    $pdf = new \Drupal\facturation\Utils\PdfWithRotation();
     $pdf->AddPage();
+
+    if($factura->get('estado')->value === 'Rectificada'){
+      $watermarkText = 'RECTIFICADA';  
+      $pdf->AddWatermark($watermarkText);
+    }
     
     // **Encabezado**
     $pdf->SetFont('Arial', 'B', 18);

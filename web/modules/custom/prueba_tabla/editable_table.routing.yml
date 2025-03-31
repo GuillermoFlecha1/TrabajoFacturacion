@@ -1,7 +1,0 @@
-editable_table.add_form:
-  path: '/admin/editable-table'
-  defaults:
-    _form: '\Drupal\editable_table\Form\EditableTableForm'
-    _title: 'Tabla Editable'
-  requirements:
-    _permission: 'access content'
