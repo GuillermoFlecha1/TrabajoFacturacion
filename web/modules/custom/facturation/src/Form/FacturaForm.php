@@ -392,7 +392,7 @@ class FacturaForm extends ContentEntityForm {
         mkdir($pdf_folder, 0777, true);
     }
 
-    $file_name = 'factura_' . $factura_id . '.pdf';
+    $file_name = 'factura_' . $num_pedido . '.pdf';
     $file_path = $pdf_folder . '/' . $file_name;
     
     // Guardar el archivo en el servidor

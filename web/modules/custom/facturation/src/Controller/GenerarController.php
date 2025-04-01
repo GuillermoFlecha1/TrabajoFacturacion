@@ -30,7 +30,8 @@ class GenerarController extends ControllerBase {
     }
 
     $factura_id = $factura->id();
-    $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}.pdf";
+    $num_pedido = $factura->get('num_pedido')->value;
+    $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido}.pdf";
 
     // Verificar si la factura es "Rectificativa" y obtener la factura original.
     if ($factura->get('estado')->value === 'Rectificativa') {
@@ -45,8 +46,8 @@ class GenerarController extends ControllerBase {
 
         // Si encontramos la factura original, usamos su ID para el PDF base.
         if ($factura_original) {
-            $original_factura_id = $factura_original->id();
-            $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$original_factura_id}.pdf";
+            $original_num_pedido = $factura_original->get('num_pedido')->value;
+            $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$original_num_pedido}.pdf";
         } else {
             throw new NotFoundHttpException('Factura original no encontrada.');
         }
@@ -82,12 +83,12 @@ class GenerarController extends ControllerBase {
 
     // Guardar el nuevo PDF con la marca de agua o el texto adicional
     if ($factura->get('estado')->value === 'Rectificada') {
-        $pdf_temp_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}_rectificada.pdf";
+        $pdf_temp_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido}_rectificada.pdf";
         $pdf->Output($pdf_temp_path, 'F');
         $pdf_content = file_get_contents($pdf_temp_path);
     }
     elseif ($factura->get('estado')->value === 'Rectificativa') {
-        $pdf_new_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}_rectificativa.pdf";
+        $pdf_new_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido}_rectificativa.pdf";
         $pdf->Output($pdf_new_path, 'F');
         $pdf_content = file_get_contents($pdf_new_path);
     } else {
@@ -98,7 +99,7 @@ class GenerarController extends ControllerBase {
     // Devolver el PDF en la respuesta HTTP.
     $response = new Response($pdf_content);
     $response->headers->set('Content-Type', 'application/pdf');
-    $response->headers->set('Content-Disposition', 'inline; filename="factura_' . $factura_id . '.pdf"');
+    $response->headers->set('Content-Disposition', 'inline; filename="factura_' . $num_pedido . '.pdf"');
     return $response;
   }  
 
