@@ -1,0 +1,116 @@
+<?php
+
+/**
+ * @file
+ * Contiene la implementación principal del módulo Facturation.
+ */
+
+/**
+ * Implementa hook_views_data().
+ *
+ * Este hook expone la entidad Facturas y sus campos para que sean utilizables
+ * en el sistema de Views de Drupal.
+ */
+function facturation_views_data() {
+  $data = [];
+
+  // Define la tabla base para la entidad Facturas.
+  $data['facturas']['table'] = [
+    'group' => t('Facturas'),
+    'base' => [
+      'field' => 'id',
+      'title' => t('Facturas'),
+      'help' => t('Listado de facturas.'),
+    ],
+  ];
+
+  // Exponiendo el campo num_pedido.
+  $data['facturas']['num_pedido'] = [
+    'title' => t('Número de Pedido'),
+    'help' => t('Número de pedido único generado.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Exponiendo la fecha de creación.
+  $data['facturas']['fecha_creacion'] = [
+    'title' => t('Fecha de Creación'),
+    'help' => t('Fecha en que se creó la factura.'),
+    'field' => [
+      'id' => 'datetime',
+    ],
+    'filter' => [
+      'id' => 'date',
+    ],
+    'sort' => [
+      'id' => 'date',
+    ],
+  ];
+  
+  $data['facturas']['fecha_vencimiento'] = [
+    'title' => t('Fecha de Vencimiento'),
+    'help' => t('Fecha en que vence la factura.'),
+    'field' => [
+      'id' => 'datetime',
+    ],
+    'filter' => [
+      'id' => 'date',
+    ],
+    'sort' => [
+      'id' => 'date',
+    ],
+  ];  
+
+  // Exponiendo el estado.
+  $data['facturas']['estado'] = [
+    'title' => t('Estado'),
+    'help' => t('Estado de la factura.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Exponiendo el usuario asociado.
+  $data['facturas']['user_id'] = [
+    'title' => t('Usuario'),
+    'help' => t('Usuario asociado a la factura.'),
+    'relationship' => [
+      'base' => 'users_field_data',
+      'base field' => 'uid',
+      'relationship field' => 'user_id',
+      'id' => 'standard',
+    ],
+  ];
+
+  // Exponiendo el total final.
+  $data['facturas']['total_final'] = [
+    'title' => t('Total Final'),
+    'help' => t('El total final de la factura.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  return $data;
+}
+
+/**
+ * Implementa hook_help().
+ *
+ * Proporciona información de ayuda para el módulo en la sección de ayuda de Drupal.
+ *
+ * @param string $route_name
+ *   El nombre de la ruta actual.
+ * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
+ *   El objeto RouteMatch de la ruta actual.
+ *
+ * @return string
+ *   La información de ayuda formateada en HTML.
+ */
+function facturation_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.facturation':
+      return '<p>' . t('El módulo Facturation gestiona la facturación mediante una entidad personalizada, ofreciendo formularios para agregar, editar y eliminar facturas, y una vista personalizada para listarlas.') . '</p>';
+  }
+}
