@@ -42,11 +42,8 @@ class GenerarController extends ControllerBase {
   public function rectificar(Facturas $facturas) {
     $num_pedido_original = $facturas->get('num_pedido')->value;
 
-    // Convertir la factura original en "Rectificada" y renombrarla a BIA
-    $facturas->set('num_pedido', 'BIA' . substr($num_pedido_original, 2));
     $facturas->set('estado', 'Rectificada');
     $facturas->save();
-    $nuevo_num_pedido_BIA = $facturas->get('num_pedido')->value;
 
     // Crear la factura rectificativa (BIV)
     $factura_BIV = $facturas->createDuplicate();
@@ -63,32 +60,12 @@ class GenerarController extends ControllerBase {
     $factura_borrador->set('total_final', 0);
     $factura_borrador->save();
 
-    // Generar los PDFs correctamente
-    $this->generarPDFRectificada($nuevo_num_pedido_BIA, $num_pedido_original);
     $this->generarPDFRectificativa($nuevo_num_pedido_BIV, $num_pedido_original);
 
     // Mensaje de éxito
     $this->messenger()->addStatus("Factura rectificada correctamente: \nBIA -> Rectificada, \nBIV -> Rectificativa, \nNueva factura en borrador creada.");
     
     return new RedirectResponse(Url::fromRoute('entity.facturas.collection')->toString());
-  }
-
-  private function generarPDFRectificada($nuevo_num_pedido_BIA, $num_pedido_original) {
-    $pdf_original = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido_original}.pdf";
-    $pdf_nuevo = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$nuevo_num_pedido_BIA}.pdf";
-
-    if (!file_exists($pdf_original)) {
-        \Drupal::logger('facturation')->error("El PDF original no se encuentra: {$pdf_original}");
-        return;
-    }
-
-    $pdf = new PdfWithRotation();
-    $pdf->AddPage();
-    $pdf->setSourceFile($pdf_original);
-    $tplIdx = $pdf->importPage(1);
-    $pdf->useTemplate($tplIdx, 0, 0);
-    $pdf->AddWatermark("RECTIFICADA");
-    $pdf->Output($pdf_nuevo, 'F');
   }
 
   private function generarPDFRectificativa($nuevo_num_pedido_BIV, $num_pedido_original) {
@@ -105,6 +82,7 @@ class GenerarController extends ControllerBase {
     $pdf->setSourceFile($pdf_original);
     $tplIdx = $pdf->importPage(1);
     $pdf->useTemplate($tplIdx, 0, 0);
+    $pdf->AddWatermark("RECTIFICATIVA");
     $pdf->SetFont('Arial', 'B', 12);
     $pdf->SetXY(10, 250);
     $pdf->Cell(0, 10, "Factura Rectificativa de {$num_pedido_original}", 0, 1);

@@ -319,10 +319,7 @@ class FacturaForm extends ContentEntityForm {
     $pdf = new \Drupal\facturation\Utils\PdfWithRotation();
     $pdf->AddPage();
 
-    if($factura->get('estado')->value === 'Rectificada'){
-      $watermarkText = 'RECTIFICADA';  
-      $pdf->AddWatermark($watermarkText);
-    }
+
     
     // **Encabezado**
     $pdf->SetFont('Arial', 'B', 18);
