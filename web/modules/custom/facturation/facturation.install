@@ -26,7 +26,8 @@ function factura_install_schema() {
       ],
       'num_pedido' => [
         'description' => 'Número de pedido único generado aleatoriamente.',
-        'type' => 'int',
+        'type' => 'varchar',
+        'length' => 50,
         'not null' => TRUE,
       ],
       'fecha_vencimiento' => [
