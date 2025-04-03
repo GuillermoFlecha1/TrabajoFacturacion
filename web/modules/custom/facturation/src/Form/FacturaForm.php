@@ -15,14 +15,11 @@ class FacturaForm extends ContentEntityForm {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
 
-    // Generar número de pedido si es necesario
-    $num_pedido_actual = $this->entity->get('num_pedido')?->value;
-    if (empty($num_pedido_actual) && !$form_state->has('num_pedido_aleatorio')) {
-      do {
-        $num_pedido_actual = rand(10000000, 99999999);
-      } while (\Drupal::entityQuery('facturas')->condition('num_pedido', $num_pedido_actual)->range(0, 1)->accessCheck(FALSE)->execute());
-      $form_state->set('num_pedido_aleatorio', $num_pedido_actual);
-      $this->entity->set('num_pedido', $num_pedido_actual);
+    // Verificar si el número de pedido está vacío o en "No-asignado"
+    $num_pedido_actual = $this->entity->get('num_pedido')->value ?? '';
+
+    if (empty($num_pedido_actual) || $num_pedido_actual === 'No-asignado') {
+        $this->entity->set('num_pedido', 'No-asignado');
     }
 
    // Prepara el valor por defecto (si es edición).
@@ -276,7 +273,29 @@ class FacturaForm extends ContentEntityForm {
         \Drupal::messenger()->addError($this->t('No se puede generar el PDF porque la factura no está guardada.'));
         return;
     }
+     // Si el número de pedido es "No-asignado", generar uno nuevo
+    if ($factura->get('num_pedido')->value === 'No-asignado') {
+      // Obtener todos los números asociados a BI, BIA o BIV
+      $query = \Drupal::database()->select('facturas', 'f')
+        ->fields('f', ['num_pedido'])
+        ->condition('num_pedido', 'BI%', 'LIKE');
 
+      $result = $query->execute()->fetchCol();
+
+      $max_numero = 0;
+
+      foreach ($result as $pedido) {
+        // Extraer el número de la cadena (ejemplo: "BI3" → 3, "BIA2" → 2, "BIV5" → 5)
+        $numero = (int) filter_var($pedido, FILTER_SANITIZE_NUMBER_INT);
+        if ($numero > $max_numero) {
+          $max_numero = $numero;
+        }
+      }
+
+      // Asignar el nuevo número como "BIx" con el siguiente número disponible
+      $nuevo_numero = $max_numero + 1;
+      $factura->set('num_pedido', 'BI' . $nuevo_numero);
+    }
     $factura->set('estado', 'Finalizado');
     $factura->save();
 
@@ -300,10 +319,7 @@ class FacturaForm extends ContentEntityForm {
     $pdf = new \Drupal\facturation\Utils\PdfWithRotation();
     $pdf->AddPage();
 
-    if($factura->get('estado')->value === 'Rectificada'){
-      $watermarkText = 'RECTIFICADA';  
-      $pdf->AddWatermark($watermarkText);
-    }
+
     
     // **Encabezado**
     $pdf->SetFont('Arial', 'B', 18);
@@ -404,7 +420,6 @@ class FacturaForm extends ContentEntityForm {
     \Drupal::messenger()->addMessage($this->t('Factura generada y guardada en: %path', ['%path' => $file_path]));
     return $file_path;
   }
-
   /**
    * Agregar producto al array asociativo en el estado del formulario.
    */
@@ -477,15 +492,11 @@ class FacturaForm extends ContentEntityForm {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     parent::submitForm($form, $form_state);
 
-    $num_pedido_aleatorio = $form_state->get('num_pedido_aleatorio');
     $user_value = $form_state->getValue('user_id');
 
     // Obtener la entidad de factura
     $factura = $this->entity;
 
-    if (!empty($num_pedido_aleatorio)) {
-        $factura->set('num_pedido', $num_pedido_aleatorio);
-    }
 
     if (!empty($user_value)) {
         $factura->set('user_id', $user_value);
