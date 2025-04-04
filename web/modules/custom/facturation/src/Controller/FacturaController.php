@@ -17,13 +17,16 @@ class FacturaController extends ControllerBase {
       ->getStorage('facturas')
       ->loadByProperties(['num_pedido' => $num_pedido]);
 
+    // Si no se encuentra la factura, lanzar un error 404.
     if (empty($factura)) {
       throw new NotFoundHttpException();
     }
     
+    // Obtener la primera factura del array.
     $factura = reset($factura);
     $factura_id = $factura->id();
 
+    // Obtener datos de la factura.
     $num_factura = $factura->get('num_pedido')->value;
     $total_final = $factura->get('total_final')->value;
     $fecha_Creacion = $factura->get("fecha_creacion")->value;
@@ -36,6 +39,7 @@ class FacturaController extends ControllerBase {
     // Renderizar la tabla de productos de la factura.
     $tabla_productos = $this->renderizarTablaProductosFactura($factura_id);
 
+    // Preparar el render array con los detalles de la factura y la tabla de productos.
     return [
       'factura_detalles' => [
         '#theme' => 'item_list',
@@ -72,6 +76,7 @@ class FacturaController extends ControllerBase {
             'nombre' => $producto->get('nombre')->value,
             'cantidad' => $factura_producto->get('cantidad')->value,
             'precio' => number_format($producto->get('precio')->value, 2),
+            // Usamos getProductoImpuesto() para obtener el valor del impuesto.
             'impuesto' => number_format($this->getProductoImpuesto($producto->id()), 2),
             'importe' => number_format($producto->get('precio')->value * $factura_producto->get('cantidad')->value, 2),
           ];
@@ -93,13 +98,13 @@ class FacturaController extends ControllerBase {
 
     $output = '<table border="1" cellpadding="5" cellspacing="0">';
     $output .= '<thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                    <th>Precio (€)</th>
-                    <th>Impuesto (%)</th>
-                    <th>Importe (€)</th>
-                  </tr>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio (€)</th>
+                        <th>Impuesto (%)</th>
+                        <th>Importe (€)</th>
+                    </tr>
                 </thead>';
     $output .= '<tbody>';
     
@@ -107,37 +112,40 @@ class FacturaController extends ControllerBase {
     $total_impuesto = 0;
 
     foreach ($productos as $producto) {
+      // Convertir los valores de importe e impuesto a float para el cálculo.
       $importe_valor = floatval(str_replace(',', '', $producto['importe']));
       $impuesto_valor = floatval(str_replace(',', '', $producto['impuesto']));
+      
       $impuesto_total = ($importe_valor * $impuesto_valor) / 100;
       $total_importe += $importe_valor;
       $total_impuesto += $impuesto_total;
 
       $output .= "<tr>
-                    <td>{$producto['nombre']}</td>
-                    <td>{$producto['cantidad']}</td>
-                    <td>{$producto['precio']}</td>
-                    <td>{$producto['impuesto']}%</td>
-                    <td>{$producto['importe']}</td>
+                      <td>{$producto['nombre']}</td>
+                      <td>{$producto['cantidad']}</td>
+                      <td>{$producto['precio']}</td>
+                      <td>{$producto['impuesto']}%</td>
+                      <td>{$producto['importe']}</td>
                   </tr>";
     }
 
     $total_final = $total_importe + $total_impuesto;
 
     $output .= "<tr>
-                  <td colspan='4'><strong>Total Importe:</strong></td>
-                  <td><strong>" . number_format($total_importe, 2) . " €</strong></td>
+                    <td colspan='4'><strong>Total Importe:</strong></td>
+                    <td><strong>" . number_format($total_importe, 2) . " €</strong></td>
                 </tr>
                 <tr>
-                  <td colspan='4'><strong>Total Impuesto:</strong></td>
-                  <td><strong>" . number_format($total_impuesto, 2) . " €</strong></td>
+                    <td colspan='4'><strong>Total Impuesto:</strong></td>
+                    <td><strong>" . number_format($total_impuesto, 2) . " €</strong></td>
                 </tr>
                 <tr>
-                  <td colspan='4'><strong>Total Final:</strong></td>
-                  <td><strong>" . number_format($total_final, 2) . " €</strong></td>
+                    <td colspan='4'><strong>Total Final:</strong></td>
+                    <td><strong>" . number_format($total_final, 2) . " €</strong></td>
                 </tr>";
 
     $output .= '</tbody></table>';
+
     return $output;
   }
 
@@ -151,6 +159,9 @@ class FacturaController extends ControllerBase {
 
   /**
    * Obtiene el impuesto del producto.
+   *
+   * Si el producto tiene el campo 'impuesto', se utiliza ese valor; 
+   * de lo contrario, se verifica si tiene el campo 'impuesto_id' y se carga la entidad de impuesto para obtener su valor.
    */
   private function getProductoImpuesto($producto_id) {
     $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);

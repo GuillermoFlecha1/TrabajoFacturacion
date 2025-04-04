@@ -9,125 +9,94 @@ use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\facturation\Utils\PdfWithRotation;
 
 class GenerarController extends ControllerBase {
 
   /**
    * Muestra el PDF de la factura.
-   *
-   * @param int $facturas
-   *   El ID de la factura.
-   *
-   * @return \Symfony\Component\HttpFoundation\Response
-   *   Respuesta con el contenido del PDF.
    */
   public function visualizarPDF($facturas) {
-    // Cargar la factura por ID.
     $factura = Facturas::load($facturas);
-    
     if (!$factura) {
-      throw new NotFoundHttpException('Factura no encontrada.');
+        throw new NotFoundHttpException('Factura no encontrada.');
     }
-  
-    // Si la factura es "Rectificativa", se intenta buscar la original.
-    if ($factura->get('estado')->value === 'Rectificativa') {
-      // Se asume que el número de pedido de la rectificativa es "BIV-<n>"
-      // y la original debe tener "BIA-<n>".
-      $num_pedido = $factura->get('num_pedido')->value;
-      // Extraer el número sin prefijo (eliminar "BIV-").
-      $numero = preg_replace('/^BIV-/', '', $num_pedido);
-      // Buscar la factura original con estado "Rectificada" y número "BIA-<n>".
-      $factura_original = \Drupal::entityTypeManager()
-        ->getStorage('facturas')
-        ->loadByProperties(['estado' => 'Rectificada', 'num_pedido' => 'BIA-' . $numero]);
-  
-      if (!empty($factura_original)) {
-        $factura = reset($factura_original);
-      }
-    }
-  
-    $factura_id = $factura->id();
-    // La ruta del PDF se construye igual que en FacturaForm.
-    $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$factura_id}.pdf";
-    \Drupal::logger('facturation')->notice('Buscando PDF en: @path', ['@path' => $pdf_path]);
-  
+
+    $num_pedido = $factura->get('num_pedido')->value;
+    $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido}.pdf";
+
     if (!file_exists($pdf_path)) {
-      throw new FileNotFoundException("El PDF de la factura no se encuentra: {$pdf_path}");
+        throw new FileNotFoundException("El PDF no se encuentra: {$pdf_path}");
     }
-  
+
     $pdf_content = file_get_contents($pdf_path);
     $response = new Response($pdf_content);
     $response->headers->set('Content-Type', 'application/pdf');
-    $response->headers->set('Content-Disposition', 'inline; filename="factura_' . $factura_id . '.pdf"');
-  
+    $response->headers->set('Content-Disposition', 'inline; filename="factura_{$num_pedido}.pdf"');
     return $response;
-  }  
+  }
 
   /**
    * Rectifica una factura.
-   *
-   * Realiza la duplicación de la factura, actualizando el estado de la
-   * factura original a "Rectificada" y la copia a "Rectificativa", asignándole
-   * el mismo número base.
    */
   public function rectificar(Facturas $facturas) {
-    // Obtener el número actual de la factura original (se asume en formato BI-<n>).
-    $original = $facturas->get('num_pedido')->value;
-    // Extraer el número sin prefijo.
-    $numero = preg_replace('/^BI-/', '', $original);
-    // Actualizar la factura original: asignarle el prefijo BIA- y cambiar estado.
-    $facturas->set('num_pedido', 'BIA-' . $numero);
+    $num_pedido_original = $facturas->get('num_pedido')->value;
+
     $facturas->set('estado', 'Rectificada');
     $facturas->save();
-  
-    // Clonar la factura original para crear la factura rectificativa.
-    $factura_rectificativa = $facturas->createDuplicate();
-    $factura_rectificativa->set('num_pedido', 'BIV-' . $numero);
-    $factura_rectificativa->set('estado', 'Rectificativa');
-    $factura_rectificativa->save();
-    
-    // Duplicar productos de la factura original a la rectificativa.
-    $this->duplicarProductos($facturas->id(), $factura_rectificativa->id());
-  
-    // Crear una copia en borrador de la factura rectificativa.
-    // Aquí, en lugar de dejar que al finalizar se reasigne usando el nuevo ID,
-    // asignamos explícitamente el número deseado.
-    $factura_borrador = $factura_rectificativa->createDuplicate();
-    // Asignamos el número que esperamos: en este ejemplo, queremos que sea BI-<n+1>.
-    // Por ello, incrementamos el número base en 1.
-    $nuevo_num = $numero + 1;
-    $factura_borrador->set('num_pedido', 'BI-' . $nuevo_num);
+
+    // Crear la factura rectificativa (BIV)
+    $factura_BIV = $facturas->createDuplicate();
+    $factura_BIV->set('num_pedido', 'BIV' . substr($num_pedido_original, 2));
+    $factura_BIV->set('estado', 'Rectificativa');
+    $factura_BIV->save();
+    $nuevo_num_pedido_BIV = $factura_BIV->get('num_pedido')->value;
+   
+
+    // Crear la factura en estado "Borrador"
+    $factura_borrador = $facturas->createDuplicate();
+    $factura_borrador->set('num_pedido', NULL);
     $factura_borrador->set('estado', 'Borrador');
+    $factura_borrador->set('total_final', 0);
     $factura_borrador->save();
-    $this->duplicarProductos($factura_rectificativa->id(), $factura_borrador->id());
-  
-    $this->messenger()->addStatus($this->t('Se ha creado una factura rectificativa con el número de pedido BIV-%num y una copia en borrador con BI-%num2.', [
-      '%num' => $numero,
-      '%num2' => $nuevo_num,
-    ]));
-  
+
+    $this->generarPDFRectificativa($nuevo_num_pedido_BIV, $num_pedido_original);
+
+    // Mensaje de éxito
+    $this->messenger()->addStatus("Factura rectificada correctamente: \nBIA -> Rectificada, \nBIV -> Rectificativa, \nNueva factura en borrador creada.");
+    
     return new RedirectResponse(Url::fromRoute('entity.facturas.collection')->toString());
   }
-  
-  /**
-   * Duplica los productos de una factura.
-   */
-  private function duplicarProductos($factura_original_id, $nueva_factura_id) {
-    $factura_productos = \Drupal::entityTypeManager()
-      ->getStorage('factura_producto')
-      ->loadByProperties(['factura_id' => $factura_original_id]);
-  
-    foreach ($factura_productos as $factura_producto) {
-      $nuevo_producto = $factura_producto->createDuplicate();
-      $nuevo_producto->set('factura_id', $nueva_factura_id);
-      $nuevo_producto->save();
-    }
-  }
 
-  /**
-   * (Opcional) Genera un nuevo número de pedido.
-   */
-  protected function generarNuevoNumeroPedido() {
-    return 'PED-' . date('YmdHis') . '-' . rand(100, 999);
-  }
+  private function generarPDFRectificativa($nuevo_num_pedido_BIV, $num_pedido_original) {
+    $pdf_original = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido_original}.pdf";
+    $pdf_nuevo = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$nuevo_num_pedido_BIV}.pdf";
+  
+    if (!file_exists($pdf_original)) {
+        \Drupal::logger('facturation')->error("El PDF original no se encuentra: {$pdf_original}");
+        return;
+    }
+  
+    $pdf = new PdfWithRotation();
+    $pdf->AddPage();
+    $pdf->setSourceFile($pdf_original);
+    $tplIdx = $pdf->importPage(1);
+    $pdf->useTemplate($tplIdx, 0, 0);
+
+    // "Limpiar" el área del título.
+    $pdf->SetFillColor(255, 255, 255);
+    $pdf->Rect(0, 10, 190, 10, 'F');
+
+    // Reimprimir el encabezado con el nuevo número de pedido rectificativa.
+    $pdf->SetFont('Arial', 'B', 18);
+    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° ' . $nuevo_num_pedido_BIV), 0, 1, 'C');
+
+    $pdf->SetFont('Arial', 'B', 12);
+    $pdf->SetXY(10, 250);
+    $pdf->Cell(0, 10, "Factura Rectificativa de {$num_pedido_original}", 0, 1);
+
+    $pdf->AddWatermark("RECTIFICATIVA");
+
+    $pdf->Output($pdf_nuevo, 'F');
+  }     
 }
