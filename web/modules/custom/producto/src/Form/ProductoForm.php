@@ -16,7 +16,15 @@ class ProductoForm extends ContentEntityForm {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
 
+<<<<<<< HEAD
     // Validación personalizada para el campo precio.
+=======
+    // Asegúrate de que el campo 'impuesto_id' esté presente
+    // Eliminamos el unset ya que no queremos eliminar el campo
+    // unset($form['impuesto_id']);  // Eliminar esta línea
+    
+    // Validación personalizada para otros campos
+>>>>>>> ff4193a2 (El impuesto_id se muestra correctamente en la lista de productos pero no se guarda al añadir o editar)
     if (isset($form['precio'])) {
       $form['precio']['#element_validate'][] = [$this, 'validatePrecio'];
     }
@@ -85,22 +93,30 @@ class ProductoForm extends ContentEntityForm {
     }
   }
 
-  /**
-   * Guardado del formulario.
-   */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
-    // Se guarda el formulario base.
-    parent::submitForm($form, $form_state);
+ /**
+ * Guardado del formulario.
+ */
+public function submitForm(array &$form, FormStateInterface $form_state) {
+  parent::submitForm($form, $form_state);
 
-    // Obtener el valor del campo 'impuesto_id'.
-    $impuesto_value = $form_state->getValue('impuesto_id');
-    if (!empty($impuesto_value)) {
-      // Asigna el valor directamente a la entidad.
-      $this->entity->set('impuesto_id', $impuesto_value);
-    }
-    // Guarda la entidad.
-    $this->entity->save();
-    // Mensaje de confirmación.
-    \Drupal::messenger()->addMessage($this->t('La entidad producto ha sido guardada.'));
+  // Obtener la entidad producto
+  $producto = $this->entity;
+
+  // Obtener el valor de 'impuesto_id' del formulario
+  $impuesto_target_id = $form_state->getValue('impuesto_id');
+
+  // Verificar si se ha seleccionado un valor para impuesto_id
+  if ($impuesto_target_id) {
+    // Asignar el valor de 'impuesto_id' como una referencia de entidad
+    $producto->set('impuesto_id', ['target_id' => $impuesto_target_id]);
+
+    \Drupal::messenger()->addMessage($this->t('Se ha asignado el impuesto_id: @impuesto', ['@impuesto' => $impuesto_target_id]));
+  } else {
+    \Drupal::messenger()->addMessage($this->t('No se ha seleccionado un impuesto.'));
   }
+
+  \Drupal::messenger()->addMessage($this->t("La entidad producto ha sido guardada"));
+}
+
+
 }

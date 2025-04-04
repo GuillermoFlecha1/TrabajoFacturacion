@@ -24,45 +24,50 @@ class ProductosListBuilder extends EntityListBuilder {
     /**
    * {@inheritdoc}
    */
-  public function buildRow(EntityInterface $entity) {
-    if (!$entity) {
-      return;
-    }
+  /**
+ * {@inheritdoc}
+ */
+public function buildRow(EntityInterface $entity) {
+  $row['id'] = $entity->id();
+  $row['nombre'] = $entity->toLink($entity->label());
+  $row['precio'] = $entity->get('precio')->value;
 
-    $row['id'] = $entity->id();
-    $row['nombre'] = $entity->toLink($entity->label());
-    $row['precio'] = $entity->get('precio')->value;
-
-    // Obtener el ID del impuesto asociado
-    $impuesto_id = $entity->get('impuesto_id')->target_id;
-
-    if (!empty($impuesto_id)) {
-      // Cargar la entidad de impuestos
-      $impuesto = \Drupal::entityTypeManager()->getStorage('impuestos')->load($impuesto_id);
-
-      if ($impuesto && $impuesto->hasField('valor')) {
-        $valor_impuesto = $impuesto->get('valor')->value;
-        $row['impuestos'] = $valor_impuesto . '%';
-      } else {
-        $row['impuestos'] = $this->t('No hay impuestos asociados');
-      }
+  // Obtener el impuesto relacionado.
+  $impuesto_id = $entity->get('impuesto_id')->target_id;
+  if ($impuesto_id) {
+    $impuesto_entity = \Drupal::entityTypeManager()->getStorage('impuestos')->load($impuesto_id);
+    if ($impuesto_entity) {
+      $impuesto_nombre = $impuesto_entity->label();
+      $impuesto_valor = $impuesto_entity->get('valor')->value;
+      /*$row['impuesto'] = $this->t('@nombre (@valor%)', [
+        '@nombre' => $impuesto_nombre,
+        '@valor' => $impuesto_valor,
+      ]);*/
+      $row['impuesto'] = $this->t('@valor%', [
+        '@valor' => $impuesto_valor
+      ]);
     } else {
-      $row['impuestos'] = $this->t('No hay impuestos asociados');
+      $row['impuesto'] = $this->t('No asignado');
     }
-
-    // Enlaces de acciones.
-    $edit_url = Url::fromRoute('producto.edit_form', ['producto' => $entity->id()]);
-    $delete_url = Url::fromRoute('producto.delete_form', ['producto' => $entity->id()]);
-    $row['acciones'] = [
-      'data' => [
-        Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
-        ['#markup' => ' | '],
-        Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
-      ],
-    ];
-
-    return $row;
+  } else {
+    $row['impuesto'] = $this->t('No asignado');
   }
+
+  // Enlaces de acciones.
+  $edit_url = Url::fromRoute('producto.edit_form', ['producto' => $entity->id()]);
+  $delete_url = Url::fromRoute('producto.delete_form', ['producto' => $entity->id()]);
+
+  $row['acciones'] = [
+    'data' => [
+      Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
+      ['#markup' => ' | '],
+      Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
+    ],
+  ];
+
+  return $row;
+}
+
 
   /**
    * {@inheritdoc}
@@ -77,7 +82,15 @@ class ProductosListBuilder extends EntityListBuilder {
         'style' => 'margin-bottom: 10px; display: inline-block;',
       ],
     ];
+<<<<<<< HEAD
     $build += parent::render();
     return $build;
   }
 }
+=======
+
+    $build += parent::render();
+    return $build;
+  }
+}
+>>>>>>> ff4193a2 (El impuesto_id se muestra correctamente en la lista de productos pero no se guarda al añadir o editar)
