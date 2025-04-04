@@ -1,0 +1,188 @@
+<?php
+
+/**
+ * @file
+ * Archivo principal del módulo facturation.
+ */
+
+use Drupal\views\ViewExecutable;
+
+/**
+ * Implementa hook_views_data().
+ *
+ * Expone los campos de la entidad 'facturas' para que puedan usarse en Views.
+ */
+function facturation_views_data() {
+  $data = [];
+
+  // Define la tabla base de la entidad 'facturas'.
+  $data['facturas']['table'] = [
+    'group' => t('Facturas'),
+    'base' => [
+      'field' => 'id',
+      'title' => t('Facturas'),
+      'help' => t('Entidad personalizada de facturas.'),
+    ],
+  ];
+
+  // Campo: ID (NumFactura).
+  $data['facturas']['id'] = [
+    'title' => t('NumFactura'),
+    'help' => t('Número de factura autoincremental.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: UUID.
+  $data['facturas']['uuid'] = [
+    'title' => t('UUID'),
+    'help' => t('Identificador único.'),
+    'field' => [
+      'id' => 'string',
+    ],
+  ];
+
+  // Campo: Fecha de Creación.
+  $data['facturas']['fecha_creacion'] = [
+    'title' => t('Fecha de Creación'),
+    'help' => t('Fecha en la que se creó la factura.'),
+    'field' => [
+      'id' => 'date',
+    ],
+    'sort' => [
+      'id' => 'date',
+    ],
+    'filter' => [
+      'id' => 'date',
+    ],
+  ];
+
+  // Campo: Número de Pedido.
+  $data['facturas']['num_pedido'] = [
+    'title' => t('Número de Pedido'),
+    'help' => t('Número de pedido generado aleatoriamente.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Campo: Fecha de Vencimiento.
+  $data['facturas']['fecha_vencimiento'] = [
+    'title' => t('Fecha de Vencimiento'),
+    'help' => t('La fecha de vencimiento de la factura.'),
+    'field' => [
+      'id' => 'date',
+    ],
+    'sort' => [
+      'id' => 'date',
+    ],
+    'filter' => [
+      'id' => 'date',
+    ],
+  ];
+
+  // Campo: Usuario (user_id).
+  $data['facturas']['user_id'] = [
+    'title' => t('Usuario'),
+    'help' => t('El usuario asociado a la factura.'),
+    'relationship' => [
+      'title' => t('Usuario'),
+      'help' => t('Relaciona la factura con el usuario.'),
+      // Utiliza la tabla base de datos de usuario en Drupal.
+      'id' => 'standard',
+      'base' => 'users_field_data',
+      'base field' => 'uid',
+      'relationship field' => 'user_id',
+    ],
+    'field' => [
+      'id' => 'entity_reference_label',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: Total Final.
+  $data['facturas']['total_final'] = [
+    'title' => t('Total Final'),
+    'help' => t('El total final de la factura.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Campo: Estado.
+  $data['facturas']['estado'] = [
+    'title' => t('Estado'),
+    'help' => t('El estado de la factura.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  return $data;
+}
+
+/**
+ * Función auxiliar para obtener las opciones (display name) de los usuarios activos.
+ *
+ * @return array
+ *   Arreglo asociativo donde la clave es el ID del usuario y el valor es su nombre a mostrar.
+ */
+function facturation_get_user_options() {
+  $options = [];
+  $users = \Drupal::entityTypeManager()->getStorage('user')->loadByProperties(['status' => 1]);
+  foreach ($users as $user) {
+    if ($user->id() > 0) {
+      $options[$user->id()] = $user->getDisplayName();
+    }
+  }
+  return $options;
+}
+
+/**
+ * Implementa hook_views_pre_render().
+ *
+ * Permite modificar los resultados antes de renderizar la vista.
+ * En este ejemplo, si la vista tiene el machine name 'facturas_view', se reemplaza el valor
+ * del campo 'user_id' por el display name obtenido de la función auxiliar.
+ */
+function facturation_views_pre_render(ViewExecutable $view) {
+  if ($view->id() == 'facturas_view') {
+    $user_options = facturation_get_user_options();
+    foreach ($view->result as $index => $row) {
+      if (isset($row->_entity) && $row->_entity->hasField('user_id')) {
+        $user_field = $row->_entity->get('user_id');
+        $user_id = $user_field->target_id;
+        $display_name = isset($user_options[$user_id]) ? $user_options[$user_id] : t('Sin usuario');
+        // Se asigna el valor formateado a la propiedad 'display'.
+        $view->result[$index]->_entity->user_id->display = $display_name;
+      }
+    }
+  }
+}

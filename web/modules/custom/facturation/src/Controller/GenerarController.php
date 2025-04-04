@@ -82,17 +82,21 @@ class GenerarController extends ControllerBase {
     $pdf->setSourceFile($pdf_original);
     $tplIdx = $pdf->importPage(1);
     $pdf->useTemplate($tplIdx, 0, 0);
-    $pdf->AddWatermark("RECTIFICATIVA");
-  
+
     // "Limpiar" el área del título.
     $pdf->SetFillColor(255, 255, 255);
     $pdf->Rect(0, 10, 190, 10, 'F');
-  
+
     // Reimprimir el encabezado con el nuevo número de pedido rectificativa.
     $pdf->SetFont('Arial', 'B', 18);
-    $pdf->SetXY(0, 10);
     $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° ' . $nuevo_num_pedido_BIV), 0, 1, 'C');
-  
+
+    $pdf->SetFont('Arial', 'B', 12);
+    $pdf->SetXY(10, 250);
+    $pdf->Cell(0, 10, "Factura Rectificativa de {$num_pedido_original}", 0, 1);
+
+    $pdf->AddWatermark("RECTIFICATIVA");
+
     $pdf->Output($pdf_nuevo, 'F');
   }     
 }

@@ -36,9 +36,11 @@ use Drupal\Core\Entity\EntityChangedTrait;
  *     "delete-form" = "/admin/facturas/{facturas}/delete",
  *     "collection" = "/admin/facturas"
  *   },
- *   field_ui_base_route = "facturas.settings"
+ *   field_ui_base_route = "facturas.settings",
+ *   views_data = "Drupal\facturation\Entity\FacturasViewsData"
  * )
  */
+
 class Facturas extends ContentEntityBase {
 
   use EntityChangedTrait;

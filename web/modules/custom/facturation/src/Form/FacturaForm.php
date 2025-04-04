@@ -275,7 +275,7 @@ class FacturaForm extends ContentEntityForm {
     }
      // Si el número de pedido es "No-asignado", generar uno nuevo
     if ($factura->get('num_pedido')->value === 'No-asignado') {
-      // Obtener todos los números asociados a BI, BIA o BIV
+      // Obtener todos los números asociados a BI, o BIV
       $query = \Drupal::database()->select('facturas', 'f')
         ->fields('f', ['num_pedido'])
         ->condition('num_pedido', 'BI%', 'LIKE');
@@ -285,7 +285,7 @@ class FacturaForm extends ContentEntityForm {
       $max_numero = 0;
 
       foreach ($result as $pedido) {
-        // Extraer el número de la cadena (ejemplo: "BI3" → 3, "BIA2" → 2, "BIV5" → 5)
+        // Extraer el número de la cadena (ejemplo: "BI3" → 3, "BIV5" → 5)
         $numero = (int) filter_var($pedido, FILTER_SANITIZE_NUMBER_INT);
         if ($numero > $max_numero) {
           $max_numero = $numero;
