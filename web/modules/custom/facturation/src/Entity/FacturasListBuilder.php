@@ -44,14 +44,23 @@ class FacturasListBuilder extends EntityListBuilder {
 
     // Estado de la factura.
     $estado = $entity->get('estado')->value;
-    
-    // Número de pedido (se oculta si el estado es "Borrador").
+
+    // Obtener número de pedido original.
+    $factura_numero = $entity->get('num_pedido')->value;
+
+    // Aplicar prefijo según el estado.
+    if ($estado === 'Finalizado' || $estado === 'Rectificada') {
+        $factura_numero = 'BI' . $factura_numero;
+    } elseif ($estado === 'Rectificativa') {
+        $factura_numero = 'BIV' . $factura_numero;
+    }
+
+    // Construir enlace al número de pedido (excepto en "Borrador").
     if ($estado === 'Borrador') {
-      $row['num_pedido'] = $this->t('Número no disponible');
+        $row['num_pedido'] = $this->t('Número no disponible');
     } else {
-      $factura_numero = $entity->get('num_pedido')->value;
-      $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $factura_numero]);
-      $row['num_pedido'] = Link::fromTextAndUrl($factura_numero, $factura_url)->toString();
+        $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $entity->id()]);
+        $row['num_pedido'] = Link::fromTextAndUrl($factura_numero, $factura_url)->toString();
     }
 
     // Fechas de creación y vencimiento.

@@ -4,7 +4,6 @@ namespace Drupal\facturation\Form;
 
 use Drupal\Core\Entity\ContentEntityForm;
 use Drupal\Core\Form\FormStateInterface;
-use FPDF;
 use Drupal\Core\Url;
 
 /**
@@ -15,12 +14,13 @@ class FacturaForm extends ContentEntityForm {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
 
-    // Verificar si el número de pedido está vacío o en "No-asignado"
-    $num_pedido_actual = $this->entity->get('num_pedido')->value ?? '';
+    $num_pedido_actual = $this->entity->get('num_pedido')->value ?? null;
 
-    if (empty($num_pedido_actual) || $num_pedido_actual === 'No-asignado') {
-        $this->entity->set('num_pedido', 'No-asignado');
+    if (empty($num_pedido_actual) || $num_pedido_actual === null) {
+        $this->entity->set('num_pedido', null);
     }
+
+
 
    // Prepara el valor por defecto (si es edición).
    $default_value_User = '';
@@ -215,6 +215,7 @@ class FacturaForm extends ContentEntityForm {
     ];
     return $form;
   }
+
   /**
    * Callback AJAX para actualizar la tabla de productos.
    */
@@ -273,28 +274,20 @@ class FacturaForm extends ContentEntityForm {
         \Drupal::messenger()->addError($this->t('No se puede generar el PDF porque la factura no está guardada.'));
         return;
     }
-     // Si el número de pedido es "No-asignado", generar uno nuevo
-    if ($factura->get('num_pedido')->value === 'No-asignado') {
-      // Obtener todos los números asociados a BI, BIA o BIV
+    if ($factura->get('num_pedido')->value === null) {
       $query = \Drupal::database()->select('facturas', 'f')
         ->fields('f', ['num_pedido'])
-        ->condition('num_pedido', 'BI%', 'LIKE');
+        ->condition('estado', 'Rectificativa', '!=')
+        ->orderBy('num_pedido', 'DESC')
+        ->range(0, 1);
 
-      $result = $query->execute()->fetchCol();
+      $ultimo_numero = $query->execute()->fetchField();
+      
+      // Si no hay números previos, iniciar con 1
+      $nuevo_numero = $ultimo_numero ? intval($ultimo_numero) + 1 : 1;
 
-      $max_numero = 0;
-
-      foreach ($result as $pedido) {
-        // Extraer el número de la cadena (ejemplo: "BI3" → 3, "BIA2" → 2, "BIV5" → 5)
-        $numero = (int) filter_var($pedido, FILTER_SANITIZE_NUMBER_INT);
-        if ($numero > $max_numero) {
-          $max_numero = $numero;
-        }
-      }
-
-      // Asignar el nuevo número como "BIx" con el siguiente número disponible
-      $nuevo_numero = $max_numero + 1;
-      $factura->set('num_pedido', 'BI' . $nuevo_numero);
+      // Asignamos el nuevo número
+      $factura->set('num_pedido', $nuevo_numero);
     }
     $factura->set('estado', 'Finalizado');
     $factura->save();
@@ -319,11 +312,9 @@ class FacturaForm extends ContentEntityForm {
     $pdf = new \Drupal\facturation\Utils\PdfWithRotation();
     $pdf->AddPage();
 
-
-    
     // **Encabezado**
     $pdf->SetFont('Arial', 'B', 18);
-    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° ' . $num_pedido), 0, 1, 'C');
+    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° BI' . $num_pedido), 0, 1, 'C');
     $pdf->Ln(5);
     
     // **Datos del Cliente**
@@ -408,7 +399,7 @@ class FacturaForm extends ContentEntityForm {
         mkdir($pdf_folder, 0777, true);
     }
 
-    $file_name = 'factura_' . $num_pedido . '.pdf';
+    $file_name = 'factura_BI' . $num_pedido . '.pdf';
     $file_path = $pdf_folder . '/' . $file_name;
     
     // Guardar el archivo en el servidor

@@ -50,6 +50,10 @@ class ComposerStaticInite4968d7ceb4379bbaed25473a0594aa5
     );
 
     public static $prefixLengthsPsr4 = array (
+        's' => 
+        array (
+            'setasign\\Fpdi\\' => 14,
+        ),
         'p' => 
         array (
             'phpowermove\\docblock\\' => 21,
@@ -251,6 +255,10 @@ class ComposerStaticInite4968d7ceb4379bbaed25473a0594aa5
     );
 
     public static $prefixDirsPsr4 = array (
+        'setasign\\Fpdi\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/setasign/fpdi/src',
+        ),
         'phpowermove\\docblock\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpowermove/docblock/src',

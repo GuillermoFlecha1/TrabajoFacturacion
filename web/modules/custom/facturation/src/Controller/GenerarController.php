@@ -23,7 +23,13 @@ class GenerarController extends ControllerBase {
     }
 
     $num_pedido = $factura->get('num_pedido')->value;
-    $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido}.pdf";
+    $estado = $factura->get('estado')->value;
+    if($estado === "Rectificativa"){
+      $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_BIV{$num_pedido}.pdf";
+    }else{
+      $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_BI{$num_pedido}.pdf";
+    }
+    
 
     if (!file_exists($pdf_path)) {
         throw new FileNotFoundException("El PDF no se encuentra: {$pdf_path}");
@@ -32,7 +38,12 @@ class GenerarController extends ControllerBase {
     $pdf_content = file_get_contents($pdf_path);
     $response = new Response($pdf_content);
     $response->headers->set('Content-Type', 'application/pdf');
-    $response->headers->set('Content-Disposition', 'inline; filename="factura_{$num_pedido}.pdf"');
+    if($estado === "Rectificativa"){
+      $response->headers->set('Content-Disposition', 'inline; filename="factura_BIV{$num_pedido}.pdf"');
+    }else{
+      $response->headers->set('Content-Disposition', 'inline; filename="factura_BI{$num_pedido}.pdf"');
+    }
+    
     return $response;
   }
 
@@ -47,7 +58,19 @@ class GenerarController extends ControllerBase {
 
     // Crear la factura rectificativa (BIV)
     $factura_BIV = $facturas->createDuplicate();
-    $factura_BIV->set('num_pedido', 'BIV' . substr($num_pedido_original, 2));
+    $query = \Drupal::database()->select('facturas', 'f')
+        ->fields('f', ['num_pedido'])
+        ->condition('estado', 'Rectificativa')
+        ->orderBy('num_pedido', 'DESC')
+        ->range(0, 1);
+
+    $ultimo_numero = $query->execute()->fetchField();
+    
+    // Si no hay números previos, iniciar con 1
+    $nuevo_numero = $ultimo_numero ? intval($ultimo_numero) + 1 : 1;
+
+    // Asignamos el nuevo número
+    $factura_BIV->set('num_pedido', $nuevo_numero);
     $factura_BIV->set('estado', 'Rectificativa');
     $factura_BIV->save();
     $nuevo_num_pedido_BIV = $factura_BIV->get('num_pedido')->value;
@@ -69,25 +92,34 @@ class GenerarController extends ControllerBase {
   }
 
   private function generarPDFRectificativa($nuevo_num_pedido_BIV, $num_pedido_original) {
-    $pdf_original = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$num_pedido_original}.pdf";
-    $pdf_nuevo = dirname(DRUPAL_ROOT) . "/private/pdf/factura_{$nuevo_num_pedido_BIV}.pdf";
-
+    $pdf_original = dirname(DRUPAL_ROOT) . "/private/pdf/factura_BI{$num_pedido_original}.pdf";
+    $pdf_nuevo = dirname(DRUPAL_ROOT) . "/private/pdf/factura_BIV{$nuevo_num_pedido_BIV}.pdf";
+  
     if (!file_exists($pdf_original)) {
         \Drupal::logger('facturation')->error("El PDF original no se encuentra: {$pdf_original}");
         return;
     }
-
+  
     $pdf = new PdfWithRotation();
     $pdf->AddPage();
     $pdf->setSourceFile($pdf_original);
     $tplIdx = $pdf->importPage(1);
     $pdf->useTemplate($tplIdx, 0, 0);
-    $pdf->AddWatermark("RECTIFICATIVA");
+
+    // "Limpiar" el área del título.
+    $pdf->SetFillColor(255, 255, 255);
+    $pdf->Rect(0, 10, 190, 10, 'F');
+
+    // Reimprimir el encabezado con el nuevo número de pedido rectificativa.
+    $pdf->SetFont('Arial', 'B', 18);
+    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° BIV' . $nuevo_num_pedido_BIV), 0, 1, 'C');
+
     $pdf->SetFont('Arial', 'B', 12);
     $pdf->SetXY(10, 250);
-    $pdf->Cell(0, 10, "Factura Rectificativa de {$num_pedido_original}", 0, 1);
-    $pdf->Output($pdf_nuevo, 'F');
-  }
-  
-}
+    $pdf->Cell(0, 10, "Factura Rectificativa de BI{$num_pedido_original}", 0, 1);
 
+    $pdf->AddWatermark("RECTIFICATIVA");
+
+    $pdf->Output($pdf_nuevo, 'F');
+  }     
+}
