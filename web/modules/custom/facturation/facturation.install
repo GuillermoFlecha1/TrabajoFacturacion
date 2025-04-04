@@ -58,7 +58,6 @@ function factura_install_schema() {
     'primary key' => ['id'],
     'unique keys' => [
       'uuid' => ['uuid'],
-      'num_pedido' => ['num_pedido'],
     ],
     'indexes' => [
       'user_id' => ['user_id'],

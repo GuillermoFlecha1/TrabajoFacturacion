@@ -103,7 +103,7 @@ class Facturas extends ContentEntityBase {
       ->setDisplayConfigurable('view', TRUE);
   
     // Número de Pedido.
-    $fields['num_pedido'] = BaseFieldDefinition::create('string')
+    $fields['num_pedido'] = BaseFieldDefinition::create('integer')
     ->setLabel(t('Número de Pedido'))
     ->setDescription(t('Número de pedido único generado aleatoriamente.'))
     ->setRequired(TRUE)
