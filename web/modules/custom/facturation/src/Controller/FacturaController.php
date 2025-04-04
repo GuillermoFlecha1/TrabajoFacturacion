@@ -16,7 +16,7 @@ class FacturaController extends ControllerBase {
     $factura = \Drupal::entityTypeManager()
       ->getStorage('facturas')
       ->loadByProperties(['num_pedido' => $num_pedido]);
-
+  
     // Si no se encuentra la factura, lanzar un error 404.
     if (empty($factura)) {
       throw new NotFoundHttpException();
@@ -25,7 +25,7 @@ class FacturaController extends ControllerBase {
     // Obtener la primera factura del array.
     $factura = reset($factura);
     $factura_id = $factura->id();
-
+  
     // Obtener datos de la factura.
     $num_factura = $factura->get('num_pedido')->value;
     $total_final = $factura->get('total_final')->value;
@@ -35,10 +35,21 @@ class FacturaController extends ControllerBase {
     $usuario = User::load($usuario_id);
     $nombre_usuario = $usuario ? $usuario->getDisplayName() : t('Usuario desconocido');
     $estado = $factura->get('estado')->value;
-
+  
+    // Definir el mapeo de los estados
+    $estados = [
+      0 => $this->t('Borrador'),
+      1 => $this->t('Finalizado'),
+      2 => $this->t('Rectificada'),
+      3 => $this->t('Rectificativa'),
+    ];
+  
+    // Si el estado es válido, obtener su texto correspondiente, de lo contrario mostrar un texto por defecto.
+    $estado_texto = isset($estados[$estado]) ? $estados[$estado] : t('Estado desconocido');
+  
     // Renderizar la tabla de productos de la factura.
     $tabla_productos = $this->renderizarTablaProductosFactura($factura_id);
-
+  
     // Preparar el render array con los detalles de la factura y la tabla de productos.
     return [
       'factura_detalles' => [
@@ -49,7 +60,7 @@ class FacturaController extends ControllerBase {
           'Fecha de Creación: ' . $fecha_Creacion,
           'Fecha de Vencimiento: ' . $fecha_Vencimiento,
           'Usuario: ' . $nombre_usuario,
-          'Estado: ' . $estado,
+          'Estado: ' . $estado_texto, // Mostrar el estado como texto.
           'Total Final: ' . number_format($total_final, 2) . ' EUR',
         ],
       ],
@@ -57,7 +68,7 @@ class FacturaController extends ControllerBase {
         '#markup' => $tabla_productos,
       ],
     ];
-  }
+  }  
 
   /**
    * Obtiene los productos de una factura específica usando el Entity API.

@@ -103,20 +103,20 @@ class Facturas extends ContentEntityBase {
       ->setDisplayConfigurable('view', TRUE);
   
     // Número de Pedido.
-    $fields['num_pedido'] = BaseFieldDefinition::create('string')
-    ->setLabel(t('Número de Pedido'))
-    ->setDescription(t('Número de pedido único generado aleatoriamente.'))
-    ->setRequired(TRUE)
-    ->setSetting('max_length', 50) // Define la longitud máxima del campo
-    ->setDisplayOptions('view', [
-        'label' => 'above',
-        'type' => 'string',
-        'weight' => 1, // Orden en la vista
-        'settings' => [
-            'readonly' => TRUE, // Mostrarlo como solo lectura en la vista.
-        ],
-    ])
-    ->setDisplayConfigurable('view', TRUE);
+    $fields['num_pedido'] = BaseFieldDefinition::create('integer')
+      ->setLabel(t('Número de Pedido'))
+      ->setDescription(t('Número de pedido único generado aleatoriamente.'))
+      ->setRequired(TRUE)
+      ->setDisplayOptions('view', [
+          'label' => 'above',
+          'type' => 'number_integer',
+          'weight' => 1,
+          'settings' => [
+              'thousand_separator' => '',
+              'prefix_suffix' => FALSE,
+          ],
+      ])
+      ->setDisplayConfigurable('view', TRUE);
     
     //Fecha de Vencimiento.
     $fields['fecha_vencimiento'] = BaseFieldDefinition::create('datetime')
@@ -175,16 +175,16 @@ class Facturas extends ContentEntityBase {
       ])
       ->setDisplayConfigurable('view', TRUE);
 
-    $fields['estado'] = BaseFieldDefinition::create('string')
+      $fields['estado'] = BaseFieldDefinition::create('integer')
       ->setLabel(t('Estado'))
       ->setDescription(t('El estado de la factura.'))
       ->setRequired(TRUE)
       ->setDisplayOptions('view', [
-        'label' => 'above',
-        'type' => 'string',
-        'weight' => 4,
+          'label' => 'above',
+          'type' => 'number',
+          'weight' => 4,
       ])
-      ->setDisplayConfigurable('view', TRUE);
+      ->setDisplayConfigurable('view', TRUE);  
 
     return $fields;
   }
