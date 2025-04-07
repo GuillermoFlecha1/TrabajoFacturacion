@@ -1,0 +1,242 @@
+<?php
+
+/**
+ * @file
+ * Código del módulo Facturation.
+ */
+
+/**
+ * Implements hook_help().
+ *
+ * Proporciona una breve descripción y ayuda para el módulo.
+ */
+function facturation_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.facturation':
+      return '<p>' . t('El módulo Facturation permite gestionar facturas y productos asociados, integrándolos como entidades de contenido en Drupal.') . '</p>';
+  }
+}
+
+/**
+ * Implements hook_views_data().
+ *
+ * Exponemos las tablas "facturas" y "factura_productos" para que sean utilizadas por Views.
+ */
+function facturation_views_data() {
+  $data = [];
+
+  // Configuración para la tabla "facturas".
+  $data['facturas']['table'] = [
+    'group' => t('Facturas'),
+    'base' => [
+      'field' => 'id',
+      'title' => t('Facturas'),
+      'help' => t('Lista de facturas.'),
+    ],
+  ];
+
+  // Campo: Número de Pedido.
+  $data['facturas']['num_pedido'] = [
+    'title' => t('Número de Pedido'),
+    'help' => t('Número de pedido único generado aleatoriamente.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Campo: Fecha de Creación.
+  // Se usa la columna real "fecha_creacion" de la base de datos.
+  $data['facturas']['fecha_creacion'] = [
+    'title' => t('Fecha de Creación'),
+    'help' => t('La fecha en que se creó la factura.'),
+    'field' => [
+      'id' => 'date',
+    ],
+    'filter' => [
+      'id' => 'date',
+    ],
+    'sort' => [
+      'id' => 'date',
+    ],
+  ];
+
+  // Campo: Fecha de Vencimiento.
+  // Se usa la columna real "fecha_vencimiento" de la base de datos.
+  $data['facturas']['fecha_vencimiento'] = [
+    'title' => t('Fecha de Vencimiento'),
+    'help' => t('La fecha de vencimiento de la factura.'),
+    'field' => [
+      'id' => 'date',
+    ],
+    'filter' => [
+      'id' => 'date',
+    ],
+    'sort' => [
+      'id' => 'date',
+    ],
+  ];
+
+  // Campo: Total Final.
+  $data['facturas']['total_final'] = [
+    'title' => t('Total Final'),
+    'help' => t('El total final de la factura.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Campo: Estado.
+  $data['facturas']['estado'] = [
+    'title' => t('Estado'),
+    'help' => t('El estado de la factura (por ejemplo, Borrador, Rectificada, Finalizada).'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Campo: user_id con relación para mostrar el Cliente.
+  $data['facturas']['user_id'] = [
+    'title' => t('Cliente'),
+    'help' => t('El cliente asociado a la factura.'),
+    'relationship' => [
+      'base' => 'users_field_data',
+      'base field' => 'uid',
+      'relationship field' => 'user_id',
+      'title' => t('Cliente'),
+      'id' => 'standard',
+    ],
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Configuración para la tabla "factura_productos".
+  $data['factura_productos']['table'] = [
+    'group' => t('Factura Productos'),
+    'base' => [
+      'field' => 'id',
+      'title' => t('Factura Productos'),
+      'help' => t('Lista de productos asociados a las facturas.'),
+    ],
+  ];
+
+  // Campo: ID Relación en factura_productos.
+  $data['factura_productos']['id'] = [
+    'title' => t('ID Relación'),
+    'help' => t('El ID único de la relación factura-producto.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: Relación de factura en factura_productos.
+  $data['factura_productos']['factura_id'] = [
+    'title' => t('Factura'),
+    'help' => t('La factura asociada al producto.'),
+    'relationship' => [
+      'base' => 'facturas',
+      'base field' => 'id',
+      'relationship field' => 'factura_id',
+      'title' => t('Factura'),
+      'id' => 'standard',
+    ],
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: Producto.
+  $data['factura_productos']['producto_id'] = [
+    'title' => t('Producto'),
+    'help' => t('El producto asociado a la factura.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: Cantidad.
+  $data['factura_productos']['cantidad'] = [
+    'title' => t('Cantidad'),
+    'help' => t('Cantidad de este producto en la factura.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  return $data;
+}
+
+/**
+ * Implements hook_views_pre_render().
+ *
+ * Recorre la vista y convierte los campos de fecha (que vienen como cadena) a timestamp numérico.
+ */
+function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
+  // Verificamos que la vista que se está renderizando sea la que lista facturas.
+  if ($view->id() == 'facturas') {
+    foreach ($view->result as $row) {
+      // Si el resultado tiene la propiedad "facturas_fecha_creacion"...
+      if (isset($row->facturas_fecha_creacion)) {
+        // Convertimos la fecha (en formato Y-m-d, etc.) a timestamp.
+        $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
+      }
+      if (isset($row->facturas_fecha_vencimiento)) {
+        $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_type_build().
+ *
+ * Permite alterar la definición de las entidades registradas, si es necesario.
+ */
+function facturation_entity_type_build(array &$entity_types) {
+  // Ejemplo: modificar la definición de una entidad si fuese preciso.
+}
+
+/**
+ * Implements hook_entity_view().
+ *
+ * Modifica la representación de las entidades en la vista.
+ */
+function facturation_entity_view(array &$build, \Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display, $view_mode) {
+  if ($entity->getEntityTypeId() === 'facturas') {
+    // Agrega una clase CSS personalizada a la visualización de facturas.
+    $build['#attributes']['class'][] = 'factura-view';
+  }
+}
+
+/**
+ * Implements hook_preprocess_page().
+ *
+ * Permite agregar variables globales a las plantillas de página.
+ */
+function facturation_preprocess_page(&$variables) {
+  $variables['facturation_module_message'] = t('Bienvenido al módulo de Facturation.');
+}
