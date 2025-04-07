@@ -87,8 +87,8 @@ class FacturasListBuilder extends EntityListBuilder {
     // Fechas de creación y vencimiento.
     $fecha_creacion = $entity->get('fecha_creacion')->date;
     $fecha_vencimiento = $entity->get('fecha_vencimiento')->date;
-    $row['fecha_creacion'] = $fecha_creacion ? $fecha_creacion->format('d-m-Y') : $this->t('Fecha no disponible');
-    $row['fecha_vencimiento'] = $fecha_vencimiento ? $fecha_vencimiento->format('d-m-Y') : $this->t('Fecha no disponible');
+    $row['fecha_creacion'] = $fecha_creacion ? $fecha_creacion->format('Y-m-d') : $this->t('Fecha no disponible');
+    $row['fecha_vencimiento'] = $fecha_vencimiento ? $fecha_vencimiento->format('Y-m-d') : $this->t('Fecha no disponible');
 
     // Mostrar el estado en formato de texto, usando el mapeo.
     $row['estado'] = isset($estadoLabels[$estado]) ? $estadoLabels[$estado] : $this->t('Desconocido');

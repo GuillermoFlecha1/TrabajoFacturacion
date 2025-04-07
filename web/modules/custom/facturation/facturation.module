@@ -2,26 +2,36 @@
 
 /**
  * @file
- * Archivo principal del módulo facturation.
+ * Código del módulo Facturation.
  */
 
-use Drupal\views\ViewExecutable;
+/**
+ * Implements hook_help().
+ *
+ * Proporciona una breve descripción y ayuda para el módulo.
+ */
+function facturation_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.facturation':
+      return '<p>' . t('El módulo Facturation permite gestionar facturas y productos asociados, integrándolos como entidades de contenido en Drupal.') . '</p>';
+  }
+}
 
 /**
- * Implementa hook_views_data().
+ * Implements hook_views_data().
  *
- * Expone los campos de la entidad 'facturas' para que puedan usarse en Views.
+ * Exponemos las tablas "facturas" y "factura_productos" para que sean utilizadas por Views.
  */
 function facturation_views_data() {
   $data = [];
 
-  // Define la tabla base de la entidad 'facturas'.
+  // Configuración para la tabla "facturas".
   $data['facturas']['table'] = [
     'group' => t('Facturas'),
     'base' => [
       'field' => 'id',
       'title' => t('Facturas'),
-      'help' => t('Entidad personalizada de facturas.'),
+      'help' => t('Lista de facturas.'),
     ],
   ];
 
@@ -40,42 +50,33 @@ function facturation_views_data() {
     ],
   ];
 
-  // Campo: UUID.
-  $data['facturas']['uuid'] = [
-    'title' => t('UUID'),
-    'help' => t('Identificador único.'),
+  // Campo: Número de Pedido.
+  $data['facturas']['num_pedido'] = [
+    'title' => t('Número de Pedido'),
+    'help' => t('Número de pedido único generado aleatoriamente.'),
     'field' => [
-      'id' => 'string',
+      'id' => 'numeric',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
     ],
   ];
 
   // Campo: Fecha de Creación.
   $data['facturas']['fecha_creacion'] = [
     'title' => t('Fecha de Creación'),
-    'help' => t('Fecha en la que se creó la factura.'),
+    'help' => t('La fecha en que se creó la factura.'),
     'field' => [
-      'id' => 'date',
-    ],
-    'sort' => [
       'id' => 'date',
     ],
     'filter' => [
       'id' => 'date',
     ],
-  ];
-
-  // Campo: Número de Pedido.
-  $data['facturas']['num_pedido'] = [
-    'title' => t('Número de Pedido'),
-    'help' => t('Número de pedido generado aleatoriamente.'),
-    'field' => [
-      'id' => 'standard',
-    ],
-    'filter' => [
-      'id' => 'string',
-    ],
     'sort' => [
-      'id' => 'standard',
+      'id' => 'date',
     ],
   ];
 
@@ -86,32 +87,11 @@ function facturation_views_data() {
     'field' => [
       'id' => 'date',
     ],
+    'filter' => [
+      'id' => 'date',
+    ],
     'sort' => [
       'id' => 'date',
-    ],
-    'filter' => [
-      'id' => 'date',
-    ],
-  ];
-
-  // Campo: Usuario (user_id).
-  $data['facturas']['user_id'] = [
-    'title' => t('Usuario'),
-    'help' => t('El usuario asociado a la factura.'),
-    'relationship' => [
-      'title' => t('Usuario'),
-      'help' => t('Relaciona la factura con el usuario.'),
-      // Utiliza la tabla base de datos de usuario en Drupal.
-      'id' => 'standard',
-      'base' => 'users_field_data',
-      'base field' => 'uid',
-      'relationship field' => 'user_id',
-    ],
-    'field' => [
-      'id' => 'entity_reference_label',
-    ],
-    'filter' => [
-      'id' => 'numeric',
     ],
   ];
 
@@ -133,7 +113,7 @@ function facturation_views_data() {
   // Campo: Estado.
   $data['facturas']['estado'] = [
     'title' => t('Estado'),
-    'help' => t('El estado de la factura.'),
+    'help' => t('El estado de la factura (por ejemplo, Borrador, Rectificada, Finalizada, Rectificativa).'),
     'field' => [
       'id' => 'standard',
     ],
@@ -145,44 +125,150 @@ function facturation_views_data() {
     ],
   ];
 
+  // Campo: user_id con relación para mostrar el Cliente.
+  $data['facturas']['user_id'] = [
+    'title' => t('Cliente'),
+    'help' => t('El cliente asociado a la factura.'),
+    'relationship' => [
+      'base' => 'users_field_data',
+      'base field' => 'uid',
+      'relationship field' => 'user_id',
+      'title' => t('Cliente'),
+      'id' => 'standard',
+    ],
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  // Configuración para la tabla "factura_productos".
+  $data['factura_productos']['table'] = [
+    'group' => t('Factura Productos'),
+    'base' => [
+      'field' => 'id',
+      'title' => t('Factura Productos'),
+      'help' => t('Lista de productos asociados a las facturas.'),
+    ],
+  ];
+
+  // Campo: ID Relación en factura_productos.
+  $data['factura_productos']['id'] = [
+    'title' => t('ID Relación'),
+    'help' => t('El ID único de la relación factura-producto.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: Relación de factura en factura_productos.
+  $data['factura_productos']['factura_id'] = [
+    'title' => t('Factura'),
+    'help' => t('La factura asociada al producto.'),
+    'relationship' => [
+      'base' => 'facturas',
+      'base field' => 'id',
+      'relationship field' => 'factura_id',
+      'title' => t('Factura'),
+      'id' => 'standard',
+    ],
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: Producto.
+  $data['factura_productos']['producto_id'] = [
+    'title' => t('Producto'),
+    'help' => t('El producto asociado a la factura.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  // Campo: Cantidad.
+  $data['factura_productos']['cantidad'] = [
+    'title' => t('Cantidad'),
+    'help' => t('Cantidad de este producto en la factura.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+  ];
+
   return $data;
 }
 
 /**
- * Función auxiliar para obtener las opciones (display name) de los usuarios activos.
+ * Implements hook_views_pre_render().
  *
- * @return array
- *   Arreglo asociativo donde la clave es el ID del usuario y el valor es su nombre a mostrar.
+ * Recorre la vista y realiza las siguientes conversiones:
+ * - Convierte las fechas a timestamp.
+ * - Convierte el valor numérico del estado a su representación textual.
+ * - Modifica el número de pedido según el estado:
+ *     * Borrador: muestra "Número no disponible"
+ *     * Finalizada o Rectificada: antepone "BI" al número de pedido.
+ *     * Rectificativa: antepone "BIV" al número de pedido.
  */
-function facturation_get_user_options() {
-  $options = [];
-  $users = \Drupal::entityTypeManager()->getStorage('user')->loadByProperties(['status' => 1]);
-  foreach ($users as $user) {
-    if ($user->id() > 0) {
-      $options[$user->id()] = $user->getDisplayName();
+function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
+  if ($view->id() == 'facturas') {
+    // Definir el mapeo de estados.
+    $estado_map = [
+      0 => t('Borrador'),
+      1 => t('Finalizada'),
+      2 => t('Rectificada'),
+      3 => t('Rectificativa'),
+    ];
+
+    foreach ($view->result as $row) {
+      // Convertir las fechas a timestamp si existen.
+      if (isset($row->facturas_fecha_creacion)) {
+        $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
+      }
+      if (isset($row->facturas_fecha_vencimiento)) {
+        $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
+      }
+
+      // Procesar el campo estado y modificar el número de pedido según la lógica deseada.
+      if (isset($row->facturas_estado)) {
+        $estado_value = $row->facturas_estado;
+        $estado_display = isset($estado_map[$estado_value]) ? $estado_map[$estado_value] : $estado_value;
+        $row->facturas_estado = $estado_display;
+
+        if (isset($row->facturas_num_pedido)) {
+          $original_num = $row->facturas_num_pedido;
+
+          // Aplicar la lógica:
+          // - Si el estado es "Borrador": se muestra "Número no disponible"
+          // - Si es "Finalizada" o "Rectificada": se antepone "BI"
+          // - Si es "Rectificativa": se antepone "BIV"
+          if ($estado_display === 0) {
+            $row->facturas_num_pedido = 'Número no disponible';
+          }
+          elseif ($estado_display === 1 || $estado_display === 2) {
+            $row->facturas_num_pedido = 'BI' . $original_num;
+          }
+          elseif ($estado_display === 3) {
+            $row->facturas_num_pedido = 'BIV' . $original_num;
+          }
+          else {
+            $row->facturas_num_pedido = $original_num;
+          }
+        }
+      }
     }
   }
-  return $options;
 }
 
 /**
- * Implementa hook_views_pre_render().
- *
- * Permite modificar los resultados antes de renderizar la vista.
- * En este ejemplo, si la vista tiene el machine name 'facturas_view', se reemplaza el valor
- * del campo 'user_id' por el display name obtenido de la función auxiliar.
+ * Implements hook_entity_view().
  */
-function facturation_views_pre_render(ViewExecutable $view) {
-  if ($view->id() == 'facturas_view') {
-    $user_options = facturation_get_user_options();
-    foreach ($view->result as $index => $row) {
-      if (isset($row->_entity) && $row->_entity->hasField('user_id')) {
-        $user_field = $row->_entity->get('user_id');
-        $user_id = $user_field->target_id;
-        $display_name = isset($user_options[$user_id]) ? $user_options[$user_id] : t('Sin usuario');
-        // Se asigna el valor formateado a la propiedad 'display'.
-        $view->result[$index]->_entity->user_id->display = $display_name;
-      }
-    }
+function facturation_entity_view(array &$build, \Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display, $view_mode) {
+  if ($entity->getEntityTypeId() === 'facturas') {
+    $build['#attributes']['class'][] = 'factura-view';
   }
 }
