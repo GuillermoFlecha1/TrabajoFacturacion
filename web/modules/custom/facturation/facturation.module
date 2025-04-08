@@ -2,20 +2,8 @@
 
 /**
  * @file
- * Código del módulo Facturation.
+ * Módulo personalizado para la facturación.
  */
-
-/**
- * Implements hook_help().
- *
- * Proporciona una breve descripción y ayuda para el módulo.
- */
-function facturation_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
-  switch ($route_name) {
-    case 'help.page.facturation':
-      return '<p>' . t('El módulo Facturation permite gestionar facturas y productos asociados, integrándolos como entidades de contenido en Drupal.') . '</p>';
-  }
-}
 
 /**
  * Implements hook_views_data().
@@ -55,10 +43,10 @@ function facturation_views_data() {
     'title' => t('Número de Pedido'),
     'help' => t('Número de pedido único generado aleatoriamente.'),
     'field' => [
-      'id' => 'numeric',
+      'id' => 'standard',  // Se usa la presentación estándar (texto)
     ],
     'filter' => [
-      'id' => 'numeric',
+      'id' => 'string',
     ],
     'sort' => [
       'id' => 'standard',
@@ -66,6 +54,7 @@ function facturation_views_data() {
   ];
 
   // Campo: Fecha de Creación.
+  // Se usa la columna real "fecha_creacion" de la base de datos.
   $data['facturas']['fecha_creacion'] = [
     'title' => t('Fecha de Creación'),
     'help' => t('La fecha en que se creó la factura.'),
@@ -81,6 +70,7 @@ function facturation_views_data() {
   ];
 
   // Campo: Fecha de Vencimiento.
+  // Se usa la columna real "fecha_vencimiento" de la base de datos.
   $data['facturas']['fecha_vencimiento'] = [
     'title' => t('Fecha de Vencimiento'),
     'help' => t('La fecha de vencimiento de la factura.'),
@@ -113,7 +103,7 @@ function facturation_views_data() {
   // Campo: Estado.
   $data['facturas']['estado'] = [
     'title' => t('Estado'),
-    'help' => t('El estado de la factura (por ejemplo, Borrador, Rectificada, Finalizada, Rectificativa).'),
+    'help' => t('El estado de la factura.'),
     'field' => [
       'id' => 'standard',
     ],
@@ -147,128 +137,68 @@ function facturation_views_data() {
     ],
   ];
 
-  // Configuración para la tabla "factura_productos".
-  $data['factura_productos']['table'] = [
-    'group' => t('Factura Productos'),
-    'base' => [
-      'field' => 'id',
-      'title' => t('Factura Productos'),
-      'help' => t('Lista de productos asociados a las facturas.'),
-    ],
-  ];
-
-  // Campo: ID Relación en factura_productos.
-  $data['factura_productos']['id'] = [
-    'title' => t('ID Relación'),
-    'help' => t('El ID único de la relación factura-producto.'),
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
-  // Campo: Relación de factura en factura_productos.
-  $data['factura_productos']['factura_id'] = [
-    'title' => t('Factura'),
-    'help' => t('La factura asociada al producto.'),
-    'relationship' => [
-      'base' => 'facturas',
-      'base field' => 'id',
-      'relationship field' => 'factura_id',
-      'title' => t('Factura'),
-      'id' => 'standard',
-    ],
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
-  // Campo: Producto.
-  $data['factura_productos']['producto_id'] = [
-    'title' => t('Producto'),
-    'help' => t('El producto asociado a la factura.'),
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
-  // Campo: Cantidad.
-  $data['factura_productos']['cantidad'] = [
-    'title' => t('Cantidad'),
-    'help' => t('Cantidad de este producto en la factura.'),
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
   return $data;
 }
 
 /**
  * Implements hook_views_pre_render().
  *
- * Recorre la vista y realiza las siguientes conversiones:
+ * Recorre la vista y realiza conversiones:
  * - Convierte las fechas a timestamp.
- * - Convierte el valor numérico del estado a su representación textual.
- * - Modifica el número de pedido según el estado:
- *     * Borrador: muestra "Número no disponible"
- *     * Finalizada o Rectificada: antepone "BI" al número de pedido.
- *     * Rectificativa: antepone "BIV" al número de pedido.
+ * - Procesa el número de pedido para agregar un prefijo:
+ *     · Si el número es 0 se muestra "Número no disponible".
+ *     · Si el número es distinto de 0, la primera aparición se le agrega "BI".
+ *     · Si el mismo número se repite, a las siguientes se les agrega "BIV".
+ * - Mapea el estado de la factura para obtener su representación textual.
  */
 function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
   if ($view->id() == 'facturas') {
-    // Definir el mapeo de estados.
+    // Define el mapeo para el campo 'estado'.
     $estado_map = [
       0 => t('Borrador'),
-      1 => t('Finalizada'),
+      1 => t('Finalizado'),
       2 => t('Rectificada'),
       3 => t('Rectificativa'),
     ];
 
+    // Convertir las fechas si existen.
     foreach ($view->result as $row) {
-      // Convertir las fechas a timestamp si existen.
       if (isset($row->facturas_fecha_creacion)) {
         $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
       }
       if (isset($row->facturas_fecha_vencimiento)) {
         $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
       }
+    }
 
-      // Procesar el campo estado y modificar el número de pedido según la lógica deseada.
+    // Usamos un arreglo para llevar el control de las apariciones del número de pedido.
+    $seen = [];
+    foreach ($view->result as $row) {
+      // Procesar el mapeo del estado.
       if (isset($row->facturas_estado)) {
         $estado_value = $row->facturas_estado;
         $estado_display = isset($estado_map[$estado_value]) ? $estado_map[$estado_value] : $estado_value;
         $row->facturas_estado = $estado_display;
+      }
 
-        if (isset($row->facturas_num_pedido)) {
-          $original_num = $row->facturas_num_pedido;
+      // Procesar el número de pedido.
+      if (isset($row->facturas_num_pedido)) {
+        // Quitar espacios en blanco y convertir a entero.
+        $original_num = (int) trim($row->facturas_num_pedido);
 
-          // Aplicar la lógica:
-          // - Si el estado es "Borrador": se muestra "Número no disponible"
-          // - Si es "Finalizada" o "Rectificada": se antepone "BI"
-          // - Si es "Rectificativa": se antepone "BIV"
-          if ($estado_display === 0) {
-            $row->facturas_num_pedido = 'Número no disponible';
-          }
-          elseif ($estado_display === 1 || $estado_display === 2) {
-            $row->facturas_num_pedido = 'BI' . $original_num;
-          }
-          elseif ($estado_display === 3) {
-            $row->facturas_num_pedido = 'BIV' . $original_num;
-          }
-          else {
-            $row->facturas_num_pedido = $original_num;
-          }
+        // Control de duplicados (para manejar las primeras y subsecuentes apariciones).
+        if (!isset($seen[$original_num])) {
+          $seen[$original_num] = 0;
+        }
+        $seen[$original_num]++;
+
+        // La primera aparición se le antepone "BI", las siguientes "BIV".
+        if ($seen[$original_num] == 1) {
+          $row->facturas_num_pedido = 'BI' . $original_num;
+        } else {
+          $row->facturas_num_pedido = 'BIV' . $original_num;
         }
       }
     }
-  }
-}
-
-/**
- * Implements hook_entity_view().
- */
-function facturation_entity_view(array &$build, \Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display, $view_mode) {
-  if ($entity->getEntityTypeId() === 'facturas') {
-    $build['#attributes']['class'][] = 'factura-view';
   }
 }

@@ -315,7 +315,7 @@ class FacturaForm extends ContentEntityForm {
     // **Encabezado**
     $pdf->SetFont('Arial', 'B', 18);
     // Modificación en la generación del encabezado del PDF
-    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° ' . ($estado == 3 ? 'BIV' : 'BI') . $num_pedido), 0, 1, 'C');
+    $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° BI' . $num_pedido), 0, 1, 'C');
     $pdf->Ln(5);
     
     // **Datos del Cliente**
