@@ -189,7 +189,6 @@ function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
       '#url' => Url::fromRoute('facturas.add_form'),
       '#attributes' => [
         'class' => ['button', 'button--primary'],
-        'style' => 'margin-bottom: 10px; display: inline-block;',
       ],
     ];
   }

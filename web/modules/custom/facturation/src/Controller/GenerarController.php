@@ -38,10 +38,10 @@ class GenerarController extends ControllerBase {
     $pdf_content = file_get_contents($pdf_path);
     $response = new Response($pdf_content);
     $response->headers->set('Content-Type', 'application/pdf');
-    if($estado === "Rectificativa"){
-      $response->headers->set('Content-Disposition', 'inline; filename="factura_BIV{$num_pedido}.pdf"');
+    if($estado === "3"){
+      $response->headers->set('Content-Disposition', 'inline; filename="factura_BIV'."$num_pedido".'.pdf"');
     }else{
-      $response->headers->set('Content-Disposition', 'inline; filename="factura_BI{$num_pedido}.pdf"');
+      $response->headers->set('Content-Disposition', 'inline; filename="factura_BI'."$num_pedido".'.pdf"');
     }
     
     return $response;
