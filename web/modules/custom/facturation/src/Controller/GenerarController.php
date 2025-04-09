@@ -24,7 +24,7 @@ class GenerarController extends ControllerBase {
 
     $num_pedido = $factura->get('num_pedido')->value;
     $estado = $factura->get('estado')->value;
-    if($estado === "Rectificativa"){
+    if($estado === "3"){
       $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_BIV{$num_pedido}.pdf";
     }else{
       $pdf_path = dirname(DRUPAL_ROOT) . "/private/pdf/factura_BI{$num_pedido}.pdf";
@@ -53,14 +53,14 @@ class GenerarController extends ControllerBase {
   public function rectificar(Facturas $facturas) {
     $num_pedido_original = $facturas->get('num_pedido')->value;
 
-    $facturas->set('estado', 'Rectificada');
+    $facturas->set('estado', '2');
     $facturas->save();
 
     // Crear la factura rectificativa (BIV)
     $factura_BIV = $facturas->createDuplicate();
     $query = \Drupal::database()->select('facturas', 'f')
         ->fields('f', ['num_pedido'])
-        ->condition('estado', 'Rectificativa')
+        ->condition('estado', '3')
         ->orderBy('num_pedido', 'DESC')
         ->range(0, 1);
 
@@ -71,7 +71,7 @@ class GenerarController extends ControllerBase {
 
     // Asignamos el nuevo número
     $factura_BIV->set('num_pedido', $nuevo_numero);
-    $factura_BIV->set('estado', 'Rectificativa');
+    $factura_BIV->set('estado', '3');
     $factura_BIV->save();
     $nuevo_num_pedido_BIV = $factura_BIV->get('num_pedido')->value;
    
@@ -79,7 +79,7 @@ class GenerarController extends ControllerBase {
     // Crear la factura en estado "Borrador"
     $factura_borrador = $facturas->createDuplicate();
     $factura_borrador->set('num_pedido', NULL);
-    $factura_borrador->set('estado', 'Borrador');
+    $factura_borrador->set('estado', '0');
     $factura_borrador->set('total_final', 0);
     $factura_borrador->save();
 
