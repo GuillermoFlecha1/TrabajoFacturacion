@@ -1,5 +1,6 @@
 <?php
 
+use Drupal\Core\Url;
 /**
  * @file
  * Código del módulo Facturation.
@@ -16,11 +17,8 @@ function facturation_help($route_name, \Drupal\Core\Routing\RouteMatchInterface 
       return '<p>' . t('El módulo Facturation permite gestionar facturas y productos asociados, integrándolos como entidades de contenido en Drupal.') . '</p>';
   }
 }
-
 /**
  * Implements hook_views_data().
- *
- * Exponemos las tablas "facturas" y "factura_productos" para que sean utilizadas por Views.
  */
 function facturation_views_data() {
   $data = [];
@@ -35,10 +33,10 @@ function facturation_views_data() {
     ],
   ];
 
-  // Campo: Número de Pedido.
-  $data['facturas']['num_pedido'] = [
-    'title' => t('Número de Pedido'),
-    'help' => t('Número de pedido único generado aleatoriamente.'),
+  // Campo: ID
+  $data['facturas']['id'] = [
+    'title' => t('ID'),
+    'help' => t('ID único de la factura.'),
     'field' => [
       'id' => 'numeric',
     ],
@@ -50,8 +48,22 @@ function facturation_views_data() {
     ],
   ];
 
+  // Campo: Número de Pedido - Ahora usando nuestro controlador personalizado
+  $data['facturas']['num_pedido'] = [
+    'title' => t('Número de Pedido'),
+    'help' => t('Número de pedido único generado aleatoriamente.'),
+    'field' => [
+      'id' => 'facturation_num_pedido',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
   // Campo: Fecha de Creación.
-  // Se usa la columna real "fecha_creacion" de la base de datos.
   $data['facturas']['fecha_creacion'] = [
     'title' => t('Fecha de Creación'),
     'help' => t('La fecha en que se creó la factura.'),
@@ -67,7 +79,6 @@ function facturation_views_data() {
   ];
 
   // Campo: Fecha de Vencimiento.
-  // Se usa la columna real "fecha_vencimiento" de la base de datos.
   $data['facturas']['fecha_vencimiento'] = [
     'title' => t('Fecha de Vencimiento'),
     'help' => t('La fecha de vencimiento de la factura.'),
@@ -112,7 +123,15 @@ function facturation_views_data() {
     ],
   ];
 
-  // Campo: user_id con relación para mostrar el Cliente.
+  // Añadimos un campo personalizado para las acciones
+  $data['facturas']['acciones'] = [
+    'title' => t('Acciones'),
+    'help' => t('Proporciona enlaces para realizar acciones sobre la factura.'),
+    'field' => [
+      'id' => 'facturation_actions',
+      'click sortable' => FALSE,
+    ],
+  ];
   $data['facturas']['user_id'] = [
     'title' => t('Cliente'),
     'help' => t('El cliente asociado a la factura.'),
@@ -124,7 +143,7 @@ function facturation_views_data() {
       'id' => 'standard',
     ],
     'field' => [
-      'id' => 'standard',
+      'id' => 'facturation_user_field',
     ],
     'filter' => [
       'id' => 'numeric',
@@ -133,81 +152,39 @@ function facturation_views_data() {
       'id' => 'standard',
     ],
   ];
-
-  // Configuración para la tabla "factura_productos".
-  $data['factura_productos']['table'] = [
-    'group' => t('Factura Productos'),
-    'base' => [
-      'field' => 'id',
-      'title' => t('Factura Productos'),
-      'help' => t('Lista de productos asociados a las facturas.'),
-    ],
-  ];
-
-  // Campo: ID Relación en factura_productos.
-  $data['factura_productos']['id'] = [
-    'title' => t('ID Relación'),
-    'help' => t('El ID único de la relación factura-producto.'),
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
-  // Campo: Relación de factura en factura_productos.
-  $data['factura_productos']['factura_id'] = [
-    'title' => t('Factura'),
-    'help' => t('La factura asociada al producto.'),
-    'relationship' => [
-      'base' => 'facturas',
-      'base field' => 'id',
-      'relationship field' => 'factura_id',
-      'title' => t('Factura'),
-      'id' => 'standard',
-    ],
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
-  // Campo: Producto.
-  $data['factura_productos']['producto_id'] = [
-    'title' => t('Producto'),
-    'help' => t('El producto asociado a la factura.'),
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
-  // Campo: Cantidad.
-  $data['factura_productos']['cantidad'] = [
-    'title' => t('Cantidad'),
-    'help' => t('Cantidad de este producto en la factura.'),
-    'field' => [
-      'id' => 'numeric',
-    ],
-  ];
-
+ 
   return $data;
 }
-
 /**
  * Implements hook_views_pre_render().
- *
- * Recorre la vista y convierte los campos de fecha (que vienen como cadena) a timestamp numérico.
  */
 function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
   // Verificamos que la vista que se está renderizando sea la que lista facturas.
   if ($view->id() == 'facturas') {
+    // Convertimos las fechas a timestamp
     foreach ($view->result as $row) {
-      // Si el resultado tiene la propiedad "facturas_fecha_creacion"...
       if (isset($row->facturas_fecha_creacion)) {
-        // Convertimos la fecha (en formato Y-m-d, etc.) a timestamp.
         $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
       }
       if (isset($row->facturas_fecha_vencimiento)) {
         $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
       }
     }
+    
+    // Añadir el botón "Agregar Factura"
+    if (!isset($view->attachment_before)) {
+      $view->attachment_before = [];
+    }
+    
+    $view->attachment_before['add_button'] = [
+      '#type' => 'link',
+      '#title' => t('Agregar Factura'),
+      '#url' => Url::fromRoute('facturas.add_form'),
+      '#attributes' => [
+        'class' => ['button', 'button--primary'],
+        'style' => 'margin-bottom: 10px; display: inline-block;',
+      ],
+    ];
   }
 }
 
