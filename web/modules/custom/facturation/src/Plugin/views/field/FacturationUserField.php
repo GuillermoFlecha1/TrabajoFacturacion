@@ -18,33 +18,13 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class FacturationUserField extends FieldPluginBase implements ContainerFactoryPluginInterface {
 
-  /**
-   * The entity type manager.
-   *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
-   */
   protected $entityTypeManager;
 
-  /**
-   * Constructs a FacturationUserField object.
-   *
-   * @param array $configuration
-   *   A configuration array containing information about the plugin instance.
-   * @param string $plugin_id
-   *   The plugin_id for the plugin instance.
-   * @param mixed $plugin_definition
-   *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity type manager.
-   */
   public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->entityTypeManager = $entity_type_manager;
   }
 
-  /**
-   * {@inheritdoc}
-   */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     return new static(
       $configuration,
@@ -54,31 +34,32 @@ class FacturationUserField extends FieldPluginBase implements ContainerFactoryPl
     );
   }
 
-  /**
-   * {@inheritdoc}
-   */
   public function query() {
     $this->ensureMyTable();
     $this->field_alias = $this->tableAlias . '.user_id';
   }
 
-  /**
-   * {@inheritdoc}
-   */
   public function render(ResultRow $values) {
-    $factura = $values->_entity;
+    $factura_id = $values->id;
+    $factura = $this->entityTypeManager->getStorage('facturas')->load($factura_id);
   
-    if (!$factura || !$factura->hasField('user_id')) {
-      return $this->t('No asignado');
+    if (!$factura) {
+      return $this->t('Factura no encontrada (ID: @id)', ['@id' => $factura_id]);
+    }
+  
+    if (!$factura->hasField('user_id')) {
+      return $this->t('Campo user_id no disponible en factura (ID: @id)', ['@id' => $factura_id]);
     }
   
     $usuario = $factura->get('user_id')->entity;
   
     if (!$usuario) {
-      return $this->t('No asignado');
+      return $this->t('Sin usuario asignado');
     }
   
-    return $usuario->toLink()->toString(); // Esto te da el nombre del usuario con link
+    return $usuario->toLink()->toString(); 
   }
+  
+  
 
 }
