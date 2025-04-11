@@ -102,7 +102,7 @@ function facturation_views_data() {
       'id' => 'standard',
     ],
     'filter' => [
-      'id' => 'string',
+      'id' => 'facturation_estado_filter',
     ],
     'sort' => [
       'id' => 'standard',
