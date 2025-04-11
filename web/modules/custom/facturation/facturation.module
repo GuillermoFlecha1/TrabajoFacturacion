@@ -1,10 +1,6 @@
 <?php
 
-/**
- * @file
- * Módulo personalizado para la facturación.
- */
-
+use Drupal\Core\Url;
 /**
  * Implements hook_views_data().
  *
@@ -25,7 +21,7 @@ function facturation_views_data() {
 
   // Campo: ID (NumFactura).
   $data['facturas']['id'] = [
-    'title' => t('NumFactura'),
+    'title' => t('Número de la Factura'),
     'help' => t('Número de factura autoincremental.'),
     'field' => [
       'id' => 'numeric',
@@ -43,10 +39,10 @@ function facturation_views_data() {
     'title' => t('Número de Pedido'),
     'help' => t('Número de pedido único generado aleatoriamente.'),
     'field' => [
-      'id' => 'standard',  // Se usa la presentación estándar (texto)
+      'id' => 'facturation_num_pedido',
     ],
     'filter' => [
-      'id' => 'string',
+      'id' => 'facturation_num_pedido_filter',
     ],
     'sort' => [
       'id' => 'standard',
@@ -54,7 +50,6 @@ function facturation_views_data() {
   ];
 
   // Campo: Fecha de Creación.
-  // Se usa la columna real "fecha_creacion" de la base de datos.
   $data['facturas']['fecha_creacion'] = [
     'title' => t('Fecha de Creación'),
     'help' => t('La fecha en que se creó la factura.'),
@@ -70,7 +65,6 @@ function facturation_views_data() {
   ];
 
   // Campo: Fecha de Vencimiento.
-  // Se usa la columna real "fecha_vencimiento" de la base de datos.
   $data['facturas']['fecha_vencimiento'] = [
     'title' => t('Fecha de Vencimiento'),
     'help' => t('La fecha de vencimiento de la factura.'),
@@ -103,7 +97,7 @@ function facturation_views_data() {
   // Campo: Estado.
   $data['facturas']['estado'] = [
     'title' => t('Estado'),
-    'help' => t('El estado de la factura.'),
+    'help' => t('El estado de la factura (por ejemplo, Borrador, Rectificada, Finalizada, Rectificativa).'),
     'field' => [
       'id' => 'standard',
     ],
@@ -127,13 +121,23 @@ function facturation_views_data() {
       'id' => 'standard',
     ],
     'field' => [
-      'id' => 'standard',
+      'id' => 'facturation_user_field',
     ],
     'filter' => [
-      'id' => 'numeric',
+      'id' => 'facturation_user_name_filter',
     ],
     'sort' => [
       'id' => 'standard',
+    ],
+  ];
+
+   // Añadimos un campo personalizado para las acciones
+   $data['facturas']['acciones'] = [
+    'title' => t('Acciones'),
+    'help' => t('Proporciona enlaces para realizar acciones sobre la factura.'),
+    'field' => [
+      'id' => 'facturation_actions',
+      'click sortable' => FALSE,
     ],
   ];
 
@@ -143,62 +147,50 @@ function facturation_views_data() {
 /**
  * Implements hook_views_pre_render().
  *
- * Recorre la vista y realiza conversiones:
+ * Recorre la vista y realiza las siguientes conversiones:
  * - Convierte las fechas a timestamp.
- * - Procesa el número de pedido para agregar un prefijo:
- *     · Si el número es 0 se muestra "Número no disponible".
- *     · Si el número es distinto de 0, la primera aparición se le agrega "BI".
- *     · Si el mismo número se repite, a las siguientes se les agrega "BIV".
- * - Mapea el estado de la factura para obtener su representación textual.
+ * - Convierte el valor numérico del estado a su representación textual.
+ * - Agrega el boton de añadir facturas.
  */
 function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
   if ($view->id() == 'facturas') {
-    // Define el mapeo para el campo 'estado'.
+    // Definir el mapeo de estados.
     $estado_map = [
       0 => t('Borrador'),
-      1 => t('Finalizado'),
+      1 => t('Finalizada'),
       2 => t('Rectificada'),
       3 => t('Rectificativa'),
     ];
 
-    // Convertir las fechas si existen.
     foreach ($view->result as $row) {
+      // Convertir las fechas a timestamp si existen.
       if (isset($row->facturas_fecha_creacion)) {
         $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
       }
       if (isset($row->facturas_fecha_vencimiento)) {
         $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
       }
-    }
 
-    // Usamos un arreglo para llevar el control de las apariciones del número de pedido.
-    $seen = [];
-    foreach ($view->result as $row) {
-      // Procesar el mapeo del estado.
+      // Procesar el campo estado y modificar el número de pedido según la lógica deseada.
       if (isset($row->facturas_estado)) {
         $estado_value = $row->facturas_estado;
         $estado_display = isset($estado_map[$estado_value]) ? $estado_map[$estado_value] : $estado_value;
         $row->facturas_estado = $estado_display;
       }
-
-      // Procesar el número de pedido.
-      if (isset($row->facturas_num_pedido)) {
-        // Quitar espacios en blanco y convertir a entero.
-        $original_num = (int) trim($row->facturas_num_pedido);
-
-        // Control de duplicados (para manejar las primeras y subsecuentes apariciones).
-        if (!isset($seen[$original_num])) {
-          $seen[$original_num] = 0;
-        }
-        $seen[$original_num]++;
-
-        // La primera aparición se le antepone "BI", las siguientes "BIV".
-        if ($seen[$original_num] == 1) {
-          $row->facturas_num_pedido = 'BI' . $original_num;
-        } else {
-          $row->facturas_num_pedido = 'BIV' . $original_num;
-        }
-      }
     }
+    // Añadir el botón "Agregar Factura"
+    if (!isset($view->attachment_before)) {
+      $view->attachment_before = [];
+    }
+    
+    $view->attachment_before['add_button'] = [
+      '#type' => 'link',
+      '#title' => t('Agregar Factura'),
+      '#url' => Url::fromRoute('facturas.add_form'),
+      '#attributes' => [
+        'class' => ['button', 'button--primary'],
+        'style' => 'margin-bottom: 10px; display: inline-block; text-align: center; line-height: 1.9em; padding: 0.5em 1em;',
+      ],
+    ];
   }
 }
