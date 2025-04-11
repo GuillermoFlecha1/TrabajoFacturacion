@@ -27,7 +27,7 @@ class FacturationNumPedidoFilter extends FilterPluginBase {
     ];
   }
 
-/**
+ /**
   * Construye el formulario expuesto para el filtro.
   */
   public function buildExposedForm(&$form, FormStateInterface $form_state) {

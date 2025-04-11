@@ -124,12 +124,13 @@ function facturation_views_data() {
       'id' => 'facturation_user_field',
     ],
     'filter' => [
-      'id' => 'facturation_user_name_filter',
+      'id' => 'facturation_cliente_filter',
+      'exposed_identifier' => 'user_id',
     ],
     'sort' => [
       'id' => 'standard',
     ],
-  ];
+  ];  
 
    // Añadimos un campo personalizado para las acciones
    $data['facturas']['acciones'] = [
