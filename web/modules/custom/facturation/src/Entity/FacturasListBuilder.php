@@ -6,7 +6,6 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityListBuilder;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
-use Drupal\Core\Render\Markup;
 
 class FacturasListBuilder extends EntityListBuilder {
 
@@ -33,87 +32,106 @@ class FacturasListBuilder extends EntityListBuilder {
    */
   public function buildRow(EntityInterface $entity) {
     if (!$entity) {
-        return;
+      return;
     }
 
-    // Define una fila para cada factura.
     $row = [];
-
+    
     // ID de la factura.
     $row['id'] = $entity->id();
 
-    // Estado de la factura.
-    $estado = $entity->get('estado')->value;
+    // Obtener el valor numérico del estado (0, 1, 2, 3).
+    $estado = (int) $entity->get('estado')->value;
+    // Mapeo de estados.
+    $estadoLabels = [
+      0 => $this->t('Borrador'),
+      1 => $this->t('Finalizado'),
+      2 => $this->t('Rectificada'),
+      3 => $this->t('Rectificativa'),
+    ];
 
-    // Obtener número de pedido original.
-    $factura_numero = $entity->get('num_pedido')->value;
+    // Obtener el número de pedido (almacenado como entero).
+    $numero = $entity->get('num_pedido')->value;
 
-    // Aplicar prefijo según el estado.
-    if ($estado === 'Finalizado' || $estado === 'Rectificada') {
-        $factura_numero = 'BI' . $factura_numero;
-    } elseif ($estado === 'Rectificativa') {
-        $factura_numero = 'BIV' . $factura_numero;
+    // Determinar prefijo según el estado:
+    // - Para Finalizado (1) y Rectificada (2) se usa "BI"
+    // - Para Rectificativa (3) se usa "BIV"
+    // - Para Borrador (0) se mostrará "Número no disponible".
+    if ($estado === 0) {
+      $display_num = $this->t('Número no disponible');
+    }
+    else {
+      if ($estado === 1 || $estado === 2) {
+        $prefijo = 'BI';
+      }
+      elseif ($estado === 3) {
+        $prefijo = 'BIV';
+      }
+      else {
+        $prefijo = '';
+      }
+      $display_num = $prefijo . $numero;
     }
 
-    // Construir enlace al número de pedido (excepto en "Borrador").
-    if ($estado === 'Borrador') {
-        $row['num_pedido'] = $this->t('Número no disponible');
-    } else {
-        $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $entity->id()]);
-        $row['num_pedido'] = Link::fromTextAndUrl($factura_numero, $factura_url)->toString();
+    // Construir el enlace para el número de pedido, excepto si es Borrador.
+    if ($estado === 0) {
+      $row['num_pedido'] = $this->t('Número no disponible');
+    }
+    else {
+      // Asegúrate de pasar el parámetro correcto. Aquí suponemos que la ruta "entity.facturas.canonical"
+      // espera el parámetro "num_pedido" para identificar la factura.
+      $factura_url = Url::fromRoute('entity.facturas.canonical', ['num_pedido' => $numero]);
+      $row['num_pedido'] = Link::fromTextAndUrl($display_num, $factura_url)->toString();
     }
 
     // Fechas de creación y vencimiento.
     $fecha_creacion = $entity->get('fecha_creacion')->date;
     $fecha_vencimiento = $entity->get('fecha_vencimiento')->date;
+    $row['fecha_creacion'] = $fecha_creacion ? $fecha_creacion->format('Y-m-d') : $this->t('Fecha no disponible');
+    $row['fecha_vencimiento'] = $fecha_vencimiento ? $fecha_vencimiento->format('Y-m-d') : $this->t('Fecha no disponible');
 
-    // Muestra solo la fecha (año-mes-día) sin la hora.
-    $row['fecha_creacion'] = $fecha_creacion ? $fecha_creacion->format('d-m-Y') : $this->t('Fecha no disponible');
-    $row['fecha_vencimiento'] = $fecha_vencimiento ? $fecha_vencimiento->format('d-m-Y') : $this->t('Fecha no disponible');
+    // Mostrar el estado en formato de texto, usando el mapeo.
+    $row['estado'] = isset($estadoLabels[$estado]) ? $estadoLabels[$estado] : $this->t('Desconocido');
 
-    // Estado de la factura.
-    $row['estado'] = $estado ? $this->t($estado) : $this->t('Desconocido');
-
-    // Obtener la información del usuario asociado.
+    // Información del usuario.
     $usuario = $entity->get('user_id')->entity;
     $row['usuario'] = $usuario ? $usuario->toLink()->toString() : $this->t('No asignado');
 
-    // Mostrar el total final.
+    // Total final.
     $row['total_final'] = $entity->get('total_final')->value . '€';
 
-    // Si el estado es "Rectificada" o "Rectificativa", solo mostramos el botón de Visualizar PDF.
-    if ($estado == 'Rectificada' || $estado == 'Rectificativa') {
+    // Definir las acciones según el estado.
+    // Si el estado es Rectificada (2) o Rectificativa (3): solo se muestra "Visualizar PDF".
+    // Si es Finalizado (1): se muestran "Visualizar PDF" y "Rectificar".
+    // Para otros estados se muestran "Editar" y "Eliminar".
+    if ($estado === 2 || $estado === 3) {
       $pdf_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $entity->id()], ['attributes' => ['target' => '_blank']]);
       $row['acciones'] = [
-          'data' => [
-              Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable(),
-          ],
+        'data' => [
+          Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable(),
+        ],
       ];
     }
-    // Si el estado es "Finalizado", se muestra Visualizar PDF y Rectificar.
-    elseif ($estado == 'Finalizado') {
+    elseif ($estado === 1) {
       $pdf_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $entity->id()], ['attributes' => ['target' => '_blank']]);
       $rectificar_url = Url::fromRoute('facturas.rectificar', ['facturas' => $entity->id()]);
-
       $row['acciones'] = [
-          'data' => [
-              Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable(),
-              ['#markup' => ' | '],
-              Link::fromTextAndUrl($this->t('Rectificar'), $rectificar_url)->toRenderable(),
-          ],
+        'data' => [
+          Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable(),
+          ['#markup' => ' | '],
+          Link::fromTextAndUrl($this->t('Rectificar'), $rectificar_url)->toRenderable(),
+        ],
       ];
-    } 
-    // Para otros estados, se muestra Editar y Eliminar.
+    }
     else {
       $edit_url = Url::fromRoute('facturas.edit_form', ['facturas' => $entity->id()]);
       $delete_url = Url::fromRoute('facturas.delete_form', ['facturas' => $entity->id()]);
-
       $row['acciones'] = [
-          'data' => [
-              Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
-              ['#markup' => ' | '],
-              Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
-          ],
+        'data' => [
+          Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable(),
+          ['#markup' => ' | '],
+          Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable(),
+        ],
       ];
     }
 
@@ -139,4 +157,5 @@ class FacturasListBuilder extends EntityListBuilder {
     $build += parent::render();
     return $build;
   }
+
 }

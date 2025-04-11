@@ -289,7 +289,7 @@ class FacturaForm extends ContentEntityForm {
       // Asignamos el nuevo número
       $factura->set('num_pedido', $nuevo_numero);
     }
-    $factura->set('estado', 'Finalizado');
+    $factura->set('estado', '1');
     $factura->save();
 
     // Obtener datos del usuario
@@ -314,6 +314,7 @@ class FacturaForm extends ContentEntityForm {
 
     // **Encabezado**
     $pdf->SetFont('Arial', 'B', 18);
+    // Modificación en la generación del encabezado del PDF
     $pdf->Cell(190, 10, iconv('UTF-8', 'ISO-8859-1', 'Factura N° BI' . $num_pedido), 0, 1, 'C');
     $pdf->Ln(5);
     
@@ -493,7 +494,7 @@ class FacturaForm extends ContentEntityForm {
         $factura->set('user_id', $user_value);
     }
 
-    $factura->set('estado', 'Borrador');
+    $factura->set('estado', '0');
     $factura->save();
     $factura_id = $factura->id();
 

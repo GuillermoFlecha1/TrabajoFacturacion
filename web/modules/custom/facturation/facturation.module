@@ -2,23 +2,9 @@
 
 use Drupal\Core\Url;
 /**
- * @file
- * Código del módulo Facturation.
- */
-
-/**
- * Implements hook_help().
- *
- * Proporciona una breve descripción y ayuda para el módulo.
- */
-function facturation_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
-  switch ($route_name) {
-    case 'help.page.facturation':
-      return '<p>' . t('El módulo Facturation permite gestionar facturas y productos asociados, integrándolos como entidades de contenido en Drupal.') . '</p>';
-  }
-}
-/**
  * Implements hook_views_data().
+ *
+ * Exponemos las tablas "facturas" y "factura_productos" para que sean utilizadas por Views.
  */
 function facturation_views_data() {
   $data = [];
@@ -33,22 +19,22 @@ function facturation_views_data() {
     ],
   ];
 
-  // Campo: ID
+  // Campo: ID (NumFactura).
   $data['facturas']['id'] = [
-    'title' => t('ID'),
-    'help' => t('ID único de la factura.'),
+    'title' => t('NumFactura'),
+    'help' => t('Número de factura autoincremental.'),
     'field' => [
-      'id' => 'numeric',
-    ],
-    'filter' => [
       'id' => 'numeric',
     ],
     'sort' => [
       'id' => 'standard',
     ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
   ];
 
-  // Campo: Número de Pedido - Ahora usando nuestro controlador personalizado
+  // Campo: Número de Pedido.
   $data['facturas']['num_pedido'] = [
     'title' => t('Número de Pedido'),
     'help' => t('Número de pedido único generado aleatoriamente.'),
@@ -111,7 +97,7 @@ function facturation_views_data() {
   // Campo: Estado.
   $data['facturas']['estado'] = [
     'title' => t('Estado'),
-    'help' => t('El estado de la factura (por ejemplo, Borrador, Rectificada, Finalizada).'),
+    'help' => t('El estado de la factura (por ejemplo, Borrador, Rectificada, Finalizada, Rectificativa).'),
     'field' => [
       'id' => 'standard',
     ],
@@ -123,15 +109,7 @@ function facturation_views_data() {
     ],
   ];
 
-  // Añadimos un campo personalizado para las acciones
-  $data['facturas']['acciones'] = [
-    'title' => t('Acciones'),
-    'help' => t('Proporciona enlaces para realizar acciones sobre la factura.'),
-    'field' => [
-      'id' => 'facturation_actions',
-      'click sortable' => FALSE,
-    ],
-  ];
+  // Campo: user_id con relación para mostrar el Cliente.
   $data['facturas']['user_id'] = [
     'title' => t('Cliente'),
     'help' => t('El cliente asociado a la factura.'),
@@ -152,68 +130,74 @@ function facturation_views_data() {
       'id' => 'standard',
     ],
   ];
- 
+
+   // Añadimos un campo personalizado para las acciones
+   $data['facturas']['acciones'] = [
+    'title' => t('Acciones'),
+    'help' => t('Proporciona enlaces para realizar acciones sobre la factura.'),
+    'field' => [
+      'id' => 'facturation_actions',
+      'click sortable' => FALSE,
+    ],
+  ];
+
   return $data;
 }
 /**
  * Implements hook_views_pre_render().
+ *
+ * Realiza ajustes en la vista antes de renderizarla:
+ * - Agrega el botón de añadir facturas.
+ * - Asegura que los campos de fecha se procesen correctamente.
+ * - Ajusta la representación textual del campo estado.
  */
 function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
-  // Verificamos que la vista que se está renderizando sea la que lista facturas.
-  if ($view->id() == 'facturas') {
-    // Convertimos las fechas a timestamp
+  if ($view->id() == 'listafacturas') {
+    // Mapeo de estados para representación textual.
+    $estado_map = [
+      'Borrador' => t('Borrador'),
+      'Finalizada' => t('Finalizada'),
+      'Rectificada' => t('Rectificada'),
+      'Rectificativa' => t('Rectificativa'),
+      0 => t('Borrador'),
+      1 => t('Finalizada'),
+      2 => t('Rectificada'),
+      3 => t('Rectificativa'),
+    ];
+    
+    // Recorremos cada resultado de la vista.
     foreach ($view->result as $row) {
-      if (isset($row->facturas_fecha_creacion)) {
+      // Verificar y convertir campo fecha_creacion.
+      if (isset($row->facturas_fecha_creacion) && !is_numeric($row->facturas_fecha_creacion)) {
         $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
       }
-      if (isset($row->facturas_fecha_vencimiento)) {
+      // Verificar y convertir campo fecha_vencimiento.
+      if (isset($row->facturas_fecha_vencimiento) && !is_numeric($row->facturas_fecha_vencimiento)) {
         $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
+      }
+      
+      // Procesa el campo estado si su valor es numérico.
+      if (isset($row->facturas_estado) && is_numeric($row->facturas_estado)) {
+        $estado_value = $row->facturas_estado;
+        $estado_display = isset($estado_map[$estado_value]) ? $estado_map[$estado_value] : $estado_value;
+        $row->facturas_estado = $estado_display;
       }
     }
     
-    // Añadir el botón "Agregar Factura"
+    // Añadir el botón "Agregar Factura" si no está ya añadido.
     if (!isset($view->attachment_before)) {
       $view->attachment_before = [];
     }
     
-    $view->attachment_before['add_button'] = [
-      '#type' => 'link',
-      '#title' => t('Agregar Factura'),
-      '#url' => Url::fromRoute('facturas.add_form'),
-      '#attributes' => [
-        'class' => ['button', 'button--primary'],
-        'style' => 'margin-bottom: 10px; display: inline-block;',
-      ],
-    ];
+    if (!isset($view->attachment_before['add_button'])) {
+      $view->attachment_before['add_button'] = [
+        '#type' => 'link',
+        '#title' => t('Agregar Factura'),
+        '#url' => \Drupal\Core\Url::fromRoute('facturas.add_form'),
+        '#attributes' => [
+          'class' => ['button', 'button--primary'],
+        ],
+      ];
+    }
   }
-}
-
-/**
- * Implements hook_entity_type_build().
- *
- * Permite alterar la definición de las entidades registradas, si es necesario.
- */
-function facturation_entity_type_build(array &$entity_types) {
-  // Ejemplo: modificar la definición de una entidad si fuese preciso.
-}
-
-/**
- * Implements hook_entity_view().
- *
- * Modifica la representación de las entidades en la vista.
- */
-function facturation_entity_view(array &$build, \Drupal\Core\Entity\EntityInterface $entity, \Drupal\Core\Entity\Display\EntityViewDisplayInterface $display, $view_mode) {
-  if ($entity->getEntityTypeId() === 'facturas') {
-    // Agrega una clase CSS personalizada a la visualización de facturas.
-    $build['#attributes']['class'][] = 'factura-view';
-  }
-}
-
-/**
- * Implements hook_preprocess_page().
- *
- * Permite agregar variables globales a las plantillas de página.
- */
-function facturation_preprocess_page(&$variables) {
-  $variables['facturation_module_message'] = t('Bienvenido al módulo de Facturation.');
 }

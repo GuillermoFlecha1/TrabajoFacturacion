@@ -13,8 +13,10 @@
     * Personaliza el mensaje de confirmación al eliminar una factura.
     */
    public function getQuestion() {
-     return $this->t('¿Estás seguro de que deseas eliminar la factura "%name"?', [
-       '%name' => $this->getEntity()->label(),
+
+    $factura_label = $this->getEntity()->id() ?: $this->t("factura sin nombre");
+     return $this->t('¿Estás seguro de que deseas eliminar la factura ?', [
+       '%name' => $factura_label,
      ]);
    }
  }

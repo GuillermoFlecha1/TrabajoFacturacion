@@ -1,10 +1,15 @@
+<?php
+
+use Drupal\Core\Url;
+use Drupal\views\ViewExecutable;
+
 /**
  * Implements hook_schema().
  */
 function factura_install_schema() {
   $schema = [];
 
-  // Definición de la tabla facturas
+  // Definición de la tabla facturas.
   $schema['facturas'] = [
     'description' => 'Tabla que almacena las facturas.',
     'fields' => [
@@ -20,8 +25,8 @@ function factura_install_schema() {
         'not null' => TRUE,
       ],
       'fecha_creacion' => [
-        'description' => 'Fecha de creación de la factura.',
-        'type' => 'date',
+        'description' => 'Fecha de creación de la factura (timestamp).',
+        'type' => 'int',
         'not null' => TRUE,
       ],
       'num_pedido' => [
@@ -30,8 +35,8 @@ function factura_install_schema() {
         'not null' => TRUE,
       ],
       'fecha_vencimiento' => [
-        'description' => 'Fecha de vencimiento de la factura.',
-        'type' => 'date',
+        'description' => 'Fecha de vencimiento de la factura (timestamp).',
+        'type' => 'int',
         'not null' => TRUE,
       ],
       'user_id' => [
@@ -57,6 +62,7 @@ function factura_install_schema() {
     'primary key' => ['id'],
     'unique keys' => [
       'uuid' => ['uuid'],
+      'num_pedido' => ['num_pedido'],
     ],
     'indexes' => [
       'user_id' => ['user_id'],
@@ -69,7 +75,7 @@ function factura_install_schema() {
     ],
   ];
 
-  // Definición de la tabla factura_productos
+  // Definición de la tabla factura_productos. (Sin cambios)
   $schema['factura_productos'] = [
     'description' => 'Tabla que almacena los productos de cada factura.',
     'fields' => [
@@ -114,4 +120,264 @@ function factura_install_schema() {
   ];
 
   return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function facturation_install() {
+  // Si el módulo Views está activo, se crea la vista por defecto.
+  if (\Drupal::moduleHandler()->moduleExists('views')) {
+    _facturation_create_default_views();
+  }
+}
+/**
+ * Crea la vista por defecto para el módulo Facturation.
+ */
+function _facturation_create_default_views() {
+  $view_storage = \Drupal::entityTypeManager()->getStorage('view');
+
+  // Verificar si la vista ya existe.
+  $view_exists = $view_storage->load('listafacturas');
+  if ($view_exists) {
+    return;
+  }
+
+  // Configuración de la vista.
+  $view_config = [
+    'id' => 'listafacturas',
+    'label' => 'Lista de Facturas',
+    'description' => 'Vista que muestra el listado de todas las facturas.',
+    'tag' => 'facturation',
+    'base_table' => 'facturas',
+    'base_field' => 'id',
+    'core' => '11.x',
+    'status' => TRUE,
+    'display' => [
+      // Display "default": configuración base.
+      'default' => [
+        'display_plugin' => 'default',
+        'id' => 'default',
+        'display_title' => 'Vista por defecto',
+        'position' => 0,
+        'display_options' => [
+          'title' => 'Lista de Facturas',
+          'use_more' => FALSE,
+          'style' => [
+            'type' => 'table',
+            'options' => [
+              'hide_empty' => FALSE,
+              'columns' => [
+                'id' => 'id',
+                'num_pedido' => 'num_pedido',
+                'fecha_creacion' => 'fecha_creacion',
+                'fecha_vencimiento' => 'fecha_vencimiento',
+                'user_id' => 'user_id',
+                'total_final' => 'total_final',
+                'estado' => 'estado',
+                'acciones' => 'acciones',
+              ],
+              'info' => [
+                'id' => [
+                  'sortable' => TRUE,
+                  'default_sort_order' => 'asc',
+                ],
+                'num_pedido' => [
+                  'sortable' => TRUE,
+                  'default_sort_order' => 'asc',
+                ],
+                'fecha_creacion' => [
+                  'sortable' => TRUE,
+                  'default_sort_order' => 'desc',
+                ],
+                'fecha_vencimiento' => [
+                  'sortable' => TRUE,
+                  'default_sort_order' => 'asc',
+                ],
+                'user_id' => [
+                  'sortable' => TRUE,
+                  'default_sort_order' => 'asc',
+                ],
+                'total_final' => [
+                  'sortable' => TRUE,
+                  'default_sort_order' => 'asc',
+                ],
+                'estado' => [
+                  'sortable' => TRUE,
+                  'default_sort_order' => 'asc',
+                ],
+                'acciones' => [
+                  'sortable' => FALSE,
+                ],
+              ],
+            ],
+          ],
+          'row' => [
+            'type' => 'fields',
+          ],
+          // Header que muestra el botón "Agregar Factura".
+          'header' => [
+            'area' => [
+              'id' => 'area',
+              'table' => 'views',
+              'field' => 'area',
+              'relationship' => 'none',
+              'group_type' => 'group',
+              'admin_label' => '',
+              'empty' => TRUE,
+              'tokenize' => FALSE,
+              'settings' => [
+                'text' => '<a href="/admin/facturas/add" class="button button--primary" style="margin-bottom: 10px; display: inline-block;">Agregar Factura</a>',
+              ],
+              'plugin_id' => 'text',
+            ],
+          ],
+          // Definición de campos.
+          'fields' => [
+            'id' => [
+              'id' => 'id',
+              'table' => 'facturas',
+              'field' => 'id',
+              'label' => 'NumFactura',
+              'exclude' => FALSE,
+              'plugin_id' => 'numeric',
+            ],
+            'num_pedido' => [
+              'id' => 'num_pedido',
+              'table' => 'facturas',
+              'field' => 'num_pedido',
+              'label' => 'Número de Pedido',
+              'exclude' => FALSE,
+              'plugin_id' => 'facturation_num_pedido',
+            ],
+            'fecha_creacion' => [
+              'id' => 'fecha_creacion',
+              'table' => 'facturas',
+              'field' => 'fecha_creacion',
+              'label' => 'Fecha de Creación',
+              'exclude' => FALSE,
+              'plugin_id' => 'date',
+              'settings' => [
+                'date_format' => 'custom',
+                // Formato que muestra solo año/mes/día sin hora.
+                'custom_date_format' => 'Y/m/d',
+                'timezone' => '',
+              ],
+            ],
+            'fecha_vencimiento' => [
+              'id' => 'fecha_vencimiento',
+              'table' => 'facturas',
+              'field' => 'fecha_vencimiento',
+              'label' => 'Fecha de Vencimiento',
+              'exclude' => FALSE,
+              'plugin_id' => 'date',
+              'settings' => [
+                'date_format' => 'custom',
+                // Formato que muestra solo año/mes/día sin hora.
+                'custom_date_format' => 'Y/m/d',
+                'timezone' => '',
+              ],
+            ],
+            'user_id' => [
+              'id' => 'user_id',
+              'table' => 'facturas',
+              'field' => 'user_id',
+              'label' => 'Cliente',
+              'exclude' => FALSE,
+              'plugin_id' => 'facturation_user_field',
+            ],
+            'total_final' => [
+              'id' => 'total_final',
+              'table' => 'facturas',
+              'field' => 'total_final',
+              'label' => 'Total Final',
+              'exclude' => FALSE,
+              'precision' => 2,
+              'plugin_id' => 'numeric',
+              'settings' => [
+                // Se añade el sufijo " €" al valor.
+                'suffix' => ' €',
+              ],
+            ],
+            'estado' => [
+              'id' => 'estado',
+              'table' => 'facturas',
+              'field' => 'estado',
+              'label' => 'Estado',
+              'exclude' => FALSE,
+              'plugin_id' => 'standard',
+            ],
+            'acciones' => [
+              'id' => 'acciones',
+              'table' => 'facturas',
+              'field' => 'acciones',
+              'label' => 'Acciones',
+              'exclude' => FALSE,
+              'plugin_id' => 'facturation_actions',
+            ],
+          ],
+          // Configuración de sorts.
+          'sorts' => [
+            'id' => [
+              'id' => 'id',
+              'table' => 'facturas',
+              'field' => 'id',
+              'order' => 'DESC',
+              'plugin_id' => 'standard',
+            ],
+          ],
+          // Paginador.
+          'pager' => [
+            'type' => 'full',
+            'options' => [
+              'items_per_page' => 25,
+              'offset' => 0,
+            ],
+          ],
+          // Configuración de la opción de caché: ninguno.
+          'cache' => [
+            'type' => 'none',
+          ],
+          // Área empty para cuando no existan resultados.
+          'empty' => [
+            'area_text_custom' => [
+              'id' => 'area_text_custom',
+              'table' => 'views',
+              'field' => 'area_text_custom',
+              'relationship' => 'none',
+              'group_type' => 'group',
+              'admin_label' => '',
+              'empty' => TRUE,
+              'content' => 'No hay facturas disponibles.',
+              'plugin_id' => 'text_custom',
+            ],
+          ],
+        ],
+      ],
+      // Display "page_1": página donde se muestra la vista.
+      'page_1' => [
+        'display_plugin' => 'page',
+        'id' => 'page_1',
+        'display_title' => 'Página',
+        'position' => 1,
+        'display_options' => [
+          'path' => 'listafacturas',
+          'menu' => [
+            'type' => 'normal',
+            'title' => 'Facturas',
+            'description' => 'Administrar facturas',
+            'weight' => 0,
+            'name' => 'main',
+            'context' => 0,
+          ],
+        ],
+      ],
+    ],
+  ];
+
+  // Crear y guardar la vista.
+  $view = $view_storage->create($view_config);
+  $view->save();
+
+  \Drupal::messenger()->addStatus(t('Se ha creado la vista "Lista de Facturas".'));
 }
