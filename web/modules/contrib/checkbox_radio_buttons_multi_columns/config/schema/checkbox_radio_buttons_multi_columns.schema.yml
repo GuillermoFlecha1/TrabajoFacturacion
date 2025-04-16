@@ -1,0 +1,7 @@
+field.widget.settings.multi_column_options_buttons:
+  type: mapping
+  label: 'Multi-column checkboxes/radio buttons'
+  mapping:
+    columns:
+      type: integer
+      label: 'Number of columns'

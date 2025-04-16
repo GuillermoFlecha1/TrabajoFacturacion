@@ -1,0 +1,12 @@
+name: Checkbox/Radio button Multi Columns
+description: Makes it possible to spread checkboxes and radio buttons in multiple columns
+package: Fields
+type: module
+core_version_requirement: ^9 || ^10 || ^11
+dependencies:
+  - drupal:options
+
+# Information added by Drupal.org packaging script on 2024-05-01
+version: '2.1.0-alpha1'
+project: 'checkbox_radio_buttons_multi_columns'
+datestamp: 1714597281

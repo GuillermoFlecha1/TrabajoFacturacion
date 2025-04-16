@@ -59,7 +59,7 @@ class FacturationActions extends FieldPluginBase implements ContainerFactoryPlug
    * {@inheritdoc}
    */
   public function query() {
-    // No necesitamos hacer ninguna consulta para este campo.
+    
   }
 
   /**

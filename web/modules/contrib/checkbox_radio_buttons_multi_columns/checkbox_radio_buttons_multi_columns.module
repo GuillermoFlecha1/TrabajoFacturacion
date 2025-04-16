@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * @file
+ * Implements multi_column_options_buttons widget.
+ */
+
+/**
+ * Implements hook_preprocess_checkboxes().
+ */
+function checkbox_radio_buttons_multi_columns_preprocess_checkboxes(&$variables) {
+  $columns = $variables['element']['#checkbox_radio_buttons_multi_columns'] ?? 0;
+  if ($columns > 1) {
+    $variables['attributes']['style'] = 'column-count: ' . $columns;
+  }
+}

@@ -1,6 +1,7 @@
 <?php
 
 use Drupal\Core\Url;
+
 /**
  * Implements hook_views_data().
  *
@@ -130,14 +131,24 @@ function facturation_views_data() {
     'sort' => [
       'id' => 'standard',
     ],
-  ];  
+  ];
 
-   // Añadimos un campo personalizado para las acciones
-   $data['facturas']['acciones'] = [
+  // Añadimos un campo personalizado para las acciones
+  $data['facturas']['acciones'] = [
     'title' => t('Acciones'),
     'help' => t('Proporciona enlaces para realizar acciones sobre la factura.'),
     'field' => [
       'id' => 'facturation_actions',
+      'click sortable' => FALSE,
+    ],
+  ];
+
+  // Campo para checkbox de selección múltiple.
+  $data['facturas']['seleccionar'] = [
+    'title' => t('Seleccionar'),
+    'help' => t('Checkbox para seleccionar la factura.'),
+    'field' => [
+      'id' => 'facturation_checkbox_field',
       'click sortable' => FALSE,
     ],
   ];
@@ -148,14 +159,11 @@ function facturation_views_data() {
 /**
  * Implements hook_views_pre_render().
  *
- * Recorre la vista y realiza las siguientes conversiones:
- * - Convierte las fechas a timestamp.
- * - Convierte el valor numérico del estado a su representación textual.
- * - Agrega el boton de añadir facturas.
+ * Modifica los datos antes de renderizar la vista.
  */
 function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
   if ($view->id() == 'facturas') {
-    // Definir el mapeo de estados.
+    // Mapeo de estados.
     $estado_map = [
       0 => t('Borrador'),
       1 => t('Finalizada'),
@@ -164,7 +172,7 @@ function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
     ];
 
     foreach ($view->result as $row) {
-      // Convertir las fechas a timestamp si existen.
+      // Convertir fechas a timestamp.
       if (isset($row->facturas_fecha_creacion)) {
         $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
       }
@@ -172,18 +180,18 @@ function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
         $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
       }
 
-      // Procesar el campo estado y modificar el número de pedido según la lógica deseada.
+      // Convertir estado a texto.
       if (isset($row->facturas_estado)) {
         $estado_value = $row->facturas_estado;
         $estado_display = isset($estado_map[$estado_value]) ? $estado_map[$estado_value] : $estado_value;
         $row->facturas_estado = $estado_display;
       }
     }
-    // Añadir el botón "Agregar Factura"
+
+    // Agregar botón "Agregar Factura".
     if (!isset($view->attachment_before)) {
       $view->attachment_before = [];
     }
-    
     $view->attachment_before['add_button'] = [
       '#type' => 'link',
       '#title' => t('Agregar Factura'),
@@ -193,5 +201,10 @@ function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
         'style' => 'margin-bottom: 10px; display: inline-block; text-align: center; line-height: 1.9em; padding: 0.5em 1em;',
       ],
     ];
-  }
+
+    // Inyectar el formulario de acciones en lote.
+    // Usamos el form builder para obtener el render array del formulario.
+    $batch_form = \Drupal::formBuilder()->getForm('Drupal\facturation\Form\FacturaBatchActionForm');
+    $view->attachment_before['batch_actions'] = $batch_form;
+    }
 }
