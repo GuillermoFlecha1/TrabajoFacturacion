@@ -19,6 +19,9 @@
         "drupal/core-composer-scaffold": "^11.1",
         "drupal/core-project-message": "^11.1",
         "drupal/core-recommended": "^11.1.5",
+        "drupal/gin": "^4.0",
+        "drupal/views_bulk_operations": "^4.3",
+        "drupal/views_data_export": "^1.5",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6"
     },
