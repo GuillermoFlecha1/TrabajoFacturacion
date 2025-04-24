@@ -1,0 +1,5 @@
+name: 'Tooltip'
+type: module
+description: 'Carga Tippy.js para tooltips en la vista de facturas.'
+core_version_requirement: ^11
+package: Custom

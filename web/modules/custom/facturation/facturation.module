@@ -1,21 +1,26 @@
 <?php
 
 use Drupal\Core\Url;
+use Drupal\views\ViewExecutable;
+use Drupal\views\Plugin\views\query\QueryPluginBase;
+
 /**
  * Implements hook_views_data().
  *
- * Exponemos las tablas "facturas" y "factura_productos" para que sean utilizadas por Views.
+ * Exponemos la tabla "facturas" y añadimos tres campos calculados:
+ * - total_importe
+ * - total_impuesto
+ * - tax_percentage
  */
 function facturation_views_data() {
   $data = [];
 
-  // Configuración para la tabla "facturas".
   $data['facturas']['table'] = [
     'group' => t('Facturas'),
     'base' => [
       'field' => 'id',
       'title' => t('Facturas'),
-      'help' => t('Lista de facturas.'),
+      'help'  => t('Lista de facturas.'),
     ],
   ];
 
@@ -78,7 +83,6 @@ function facturation_views_data() {
       'id' => 'date',
     ],
   ];
-
   // Campo: Total Final.
   $data['facturas']['total_final'] = [
     'title' => t('Total Final'),
@@ -141,63 +145,158 @@ function facturation_views_data() {
     ],
   ];
 
+  // ---------------------------------------------------
+  // 2) Campos CALCULADOS (no existen en BD)
+  // ---------------------------------------------------
+
+// Total Importe (sin IVA)
+$data['facturas']['total_importe'] = [
+  'title'      => t('Total Importe'),
+  'help'       => t('Suma de importes de productos sin IVA.'),
+  'field'      => [
+    'id' => 'facturation_calculated_field', // Controlador personalizado
+    'click sortable' => FALSE,
+  ],
+  'real field' => 'id', // Usamos el ID como campo real para evitar errores
+];
+
+// Total Impuesto
+$data['facturas']['total_impuesto'] = [
+  'title'      => t('Total Impuesto'),
+  'help'       => t('Suma de los importes de IVA aplicados.'),
+  'field'      => [
+    'id' => 'facturation_calculated_field', // Controlador personalizado
+    'click sortable' => FALSE,
+  ],
+  'real field' => 'id', // Usamos el ID como campo real para evitar errores
+];
+
+// Porcentaje efectivo de impuesto
+$data['facturas']['tax_percentage'] = [
+  'title'      => t('Porcentaje Impuesto'),
+  'help'       => t('Porcentaje efectivo de IVA sobre el subtotal.'),
+  'field'      => [
+    'id' => 'facturation_calculated_field', // Controlador personalizado
+    'click sortable' => FALSE,
+  ],
+  'real field' => 'id', // Usamos el ID como campo real para evitar errores
+];
   return $data;
+}
+
+/**
+ * Implements hook_views_query_alter().
+ *
+ * Elimina de la cláusula SELECT de SQL los campos calculados
+ * que no existen en la base de datos.
+ */
+/**
+ * Implements hook_views_query_alter().
+ *
+ * Removes calculated fields from SQL query that don't exist in database.
+ */
+/**
+ * Implements hook_views_query_alter().
+ */
+function facturation_views_query_alter(ViewExecutable $view, QueryPluginBase $query) {
+  if ($view->id() === 'listafacturas' && $query instanceof \Drupal\views\Plugin\views\query\Sql) {
+    // Obtener todas las expresiones SQL (campos) del query
+    if (isset($query->fields)) {
+      foreach ($query->fields as $table_alias => $fields) {
+        foreach ($fields as $field_alias => $field) {
+          // Si el alias del campo contiene uno de nuestros campos calculados
+          if (strpos($field_alias, 'tax_percentage') !== FALSE || 
+              strpos($field_alias, 'total_importe') !== FALSE || 
+              strpos($field_alias, 'total_impuesto') !== FALSE) {
+            // Eliminar completamente este campo de la consulta
+            unset($query->fields[$table_alias][$field_alias]);
+          }
+        }
+        // Si ya no hay campos para esta tabla, eliminar la tabla
+        if (empty($query->fields[$table_alias])) {
+          unset($query->fields[$table_alias]);
+        }
+      }
+    }
+  }
 }
 /**
  * Implements hook_views_pre_render().
  *
- * Realiza ajustes en la vista antes de renderizarla:
- * - Agrega el botón de añadir facturas.
- * - Asegura que los campos de fecha se procesen correctamente.
- * - Ajusta la representación textual del campo estado.
+ * Para la vista 'listafacturas', calcula e inyecta en cada fila:
+ * - total_importe
+ * - total_impuesto
+ * - tax_percentage
+ * Además de ajustes de fechas, estado y botón "Agregar Factura".
  */
-function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
-  if ($view->id() == 'listafacturas') {
-    // Mapeo de estados para representación textual.
-    $estado_map = [
-      'Borrador' => t('Borrador'),
-      'Finalizada' => t('Finalizada'),
-      'Rectificada' => t('Rectificada'),
-      'Rectificativa' => t('Rectificativa'),
-      0 => t('Borrador'),
-      1 => t('Finalizada'),
-      2 => t('Rectificada'),
-      3 => t('Rectificativa'),
+function facturation_views_pre_render(ViewExecutable $view) {
+  if ($view->id() !== 'listafacturas') {
+    return;
+  }
+
+  // Mapeo de estados
+  $estado_map = [
+    0 => t('Borrador'),
+    1 => t('Finalizada'),
+    2 => t('Rectificada'),
+    3 => t('Rectificativa'),
+  ];
+
+  foreach ($view->result as $row) {
+    // Ajustes previos: fecha y estado
+    if (!empty($row->facturas_fecha_creacion) && !is_numeric($row->facturas_fecha_creacion)) {
+      $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
+    }
+    if (!empty($row->facturas_fecha_vencimiento) && !is_numeric($row->facturas_fecha_vencimiento)) {
+      $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
+    }
+    if (isset($row->facturas_estado) && is_numeric($row->facturas_estado)) {
+      $val = $row->facturas_estado;
+      $row->facturas_estado = $estado_map[$val] ?? $row->facturas_estado;
+    }
+
+    // Cálculo de importes e impuesto
+    $factura_id     = $row->facturas_id;
+    $total_importe  = 0;
+    $total_impuesto = 0;
+
+    $productos = \Drupal::entityTypeManager()
+      ->getStorage('factura_producto')
+      ->loadByProperties(['factura_id' => $factura_id]);
+
+    foreach ($productos as $fp) {
+      $cantidad = $fp->get('cantidad')->value;
+      $producto = $fp->get('producto_id')->entity;
+      $precio   = $producto->get('precio')->value;
+
+      // % de impuesto
+      $impuesto_pct = 0;
+      if ($producto->hasField('impuesto_id') && ($imp_ent = $producto->get('impuesto_id')->entity)) {
+        $impuesto_pct = $imp_ent->get('valor')->value;
+      }
+
+      $importe        = $precio * $cantidad;
+      $impuesto_valor = ($importe * $impuesto_pct) / 100;
+
+      $total_importe  += $importe;
+      $total_impuesto += $impuesto_valor;
+    }
+
+    // Inyectar campos calculados en el row
+    $row->facturas_total_importe   = $total_importe;
+    $row->facturas_total_impuesto  = $total_impuesto;
+    $row->facturas_tax_percentage  = $total_importe
+      ? (($total_impuesto * 100) / $total_importe)
+      : 0;
+  }
+
+  // Botón "Agregar Factura"
+  if (!isset($view->attachment_before['add_button'])) {
+    $view->attachment_before['add_button'] = [
+      '#type'       => 'link',
+      '#title'      => t('Agregar Factura'),
+      '#url'        => Url::fromRoute('facturas.add_form'),
+      '#attributes' => ['class' => ['button', 'button--primary']],
     ];
-    
-    // Recorremos cada resultado de la vista.
-    foreach ($view->result as $row) {
-      // Verificar y convertir campo fecha_creacion.
-      if (isset($row->facturas_fecha_creacion) && !is_numeric($row->facturas_fecha_creacion)) {
-        $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
-      }
-      // Verificar y convertir campo fecha_vencimiento.
-      if (isset($row->facturas_fecha_vencimiento) && !is_numeric($row->facturas_fecha_vencimiento)) {
-        $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
-      }
-      
-      // Procesa el campo estado si su valor es numérico.
-      if (isset($row->facturas_estado) && is_numeric($row->facturas_estado)) {
-        $estado_value = $row->facturas_estado;
-        $estado_display = isset($estado_map[$estado_value]) ? $estado_map[$estado_value] : $estado_value;
-        $row->facturas_estado = $estado_display;
-      }
-    }
-    
-    // Añadir el botón "Agregar Factura" si no está ya añadido.
-    if (!isset($view->attachment_before)) {
-      $view->attachment_before = [];
-    }
-    
-    if (!isset($view->attachment_before['add_button'])) {
-      $view->attachment_before['add_button'] = [
-        '#type' => 'link',
-        '#title' => t('Agregar Factura'),
-        '#url' => \Drupal\Core\Url::fromRoute('facturas.add_form'),
-        '#attributes' => [
-          'class' => ['button', 'button--primary'],
-        ],
-      ];
-    }
   }
 }

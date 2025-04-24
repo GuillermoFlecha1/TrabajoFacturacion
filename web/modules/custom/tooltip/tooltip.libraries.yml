@@ -1,0 +1,11 @@
+tooltip:
+  version: 1.x
+  css:
+    theme:
+      https://cdn.jsdelivr.net/npm/tippy.js@6/dist/tippy.css: { type: external }
+  js:
+    https://cdn.jsdelivr.net/npm/@popperjs/core@2/dist/umd/popper.min.js: { type: external, minified: true }
+    https://cdn.jsdelivr.net/npm/tippy.js@6/dist/tippy.umd.min.js:      { type: external, minified: true }
+    js/tooltip-init.js: {}
+  dependencies:
+    - core/drupal

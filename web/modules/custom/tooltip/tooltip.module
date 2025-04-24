@@ -1,0 +1,12 @@
+<?php
+use Drupal\views\ViewExecutable;
+
+/**
+ * Adjunta la librería a la vista de facturas.
+ */
+function listafacturas_tooltip_views_pre_render(ViewExecutable $view) {
+  // Ajusta 'facturas' y 'page_1' a tu machine name de la vista y display.
+  if ($view->id() === 'listafacturas' && $view->current_display === 'page_1') {
+    $view->element['#attached']['library'][] = 'listafacturas_tooltip/tooltip';
+  }
+}
