@@ -9,3 +9,12 @@ tooltip:
     js/tooltip-init.js: {}
   dependencies:
     - core/drupal
+    - core/jquery
+
+keyboard:
+  version: 1.x
+  js:
+    js/keyboard-shortcuts.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal

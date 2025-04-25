@@ -4,13 +4,12 @@ use Drupal\views\ViewExecutable;
 
 /**
  * Implements hook_views_pre_render().
- *
- * Adjunta la librería 'tooltip/tooltip' en la vista 'listafacturas'.
  */
 function tooltip_views_pre_render(ViewExecutable $view) {
-  // Sólo cuando la vista es 'listafacturas'.
   if ($view->id() === 'listafacturas') {
-    // Adjuntamos la librería definida en tooltip.libraries.yml
+    // Tippy
     $view->element['#attached']['library'][] = 'tooltip/tooltip';
+    // Keyboard shortcuts
+    $view->element['#attached']['library'][] = 'tooltip/keyboard';
   }
 }
