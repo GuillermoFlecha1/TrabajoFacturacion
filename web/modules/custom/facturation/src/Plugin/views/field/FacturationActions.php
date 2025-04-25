@@ -19,6 +19,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class FacturationActions extends FieldPluginBase implements ContainerFactoryPluginInterface {
 
+  /**
+   * @var EntityTypeManagerInterface
+   */
   protected $entityTypeManager;
 
   public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager) {
@@ -35,50 +38,40 @@ class FacturationActions extends FieldPluginBase implements ContainerFactoryPlug
     );
   }
 
- 
   public function query() {
-    
+    // No hacemos nada en la consulta.
   }
 
- 
   public function render(ResultRow $values) {
     $factura_id = $values->id;
     $factura = $this->entityTypeManager->getStorage('facturas')->load($factura_id);
-    
+
     if (!$factura) {
       return [];
     }
-    
-    $estado = (int) $factura->get('estado')->value;
 
+    $estado = (int) $factura->get('estado')->value;
     $links = [];
-    
-    // Si el estado es "Rectificada" o "Rectificativa", solo mostramos el botón de Visualizar PDF.
-    if ($estado == 2 || $estado == 3) {
-      $pdf_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $factura_id], ['attributes' => ['target' => '_blank']]);
+
+    // Construcción de enlaces según estado.
+    $pdf_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $factura_id], ['attributes' => ['target' => '_blank']]);
+    if ($estado === 2 || $estado === 3) {
       $links[] = Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable();
     }
-    // Si el estado es "Finalizado", se muestra Visualizar PDF y Rectificar.
-    elseif ($estado == 1) {
-      $pdf_url = Url::fromRoute('facturas.ver_pdf', ['facturas' => $factura_id], ['attributes' => ['target' => '_blank']]);
-      $rectificar_url = Url::fromRoute('facturas.rectificar', ['facturas' => $factura_id]);
-      
+    elseif ($estado === 1) {
       $links[] = Link::fromTextAndUrl($this->t('Visualizar PDF'), $pdf_url)->toRenderable();
-      $links[] = Link::fromTextAndUrl($this->t('Rectificar'), $rectificar_url)->toRenderable();
-    } 
-    // Para otros estados, se muestra Editar y Eliminar.
+      $links[] = Link::fromTextAndUrl($this->t('Rectificar'), Url::fromRoute('facturas.rectificar', ['facturas' => $factura_id]))->toRenderable();
+    }
     else {
-      $edit_url = Url::fromRoute('facturas.edit_form', ['facturas' => $factura_id]);
-      $delete_url = Url::fromRoute('facturas.delete_form', ['facturas' => $factura_id]);
-      
-      $links[] = Link::fromTextAndUrl($this->t('Editar'), $edit_url)->toRenderable();
-      $links[] = Link::fromTextAndUrl($this->t('Eliminar'), $delete_url)->toRenderable();
+      $links[] = Link::fromTextAndUrl($this->t('Editar'), Url::fromRoute('facturas.edit_form', ['facturas' => $factura_id]))->toRenderable();
+      $links[] = Link::fromTextAndUrl($this->t('Eliminar'), Url::fromRoute('facturas.delete_form', ['facturas' => $factura_id]))->toRenderable();
     }
-    
+
+    // Render inline en un <div> sin <ul>.
     return [
-      '#theme' => 'item_list',
-      '#items' => $links,
+      '#type' => 'container',
       '#attributes' => ['class' => ['facturation-actions']],
+      'links' => $links,
     ];
   }
 }
