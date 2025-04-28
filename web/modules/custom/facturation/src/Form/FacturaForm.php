@@ -231,8 +231,7 @@ class FacturaForm extends ContentEntityForm {
     if (is_array($cantidad)) {
       if (isset($cantidad[0]['value'])) {
         $cantidad = $cantidad[0]['value'];
-      }
-      elseif (isset($cantidad['value'])) {
+      } elseif (isset($cantidad['value'])) {
         $cantidad = $cantidad['value'];
       }
     }
@@ -241,6 +240,7 @@ class FacturaForm extends ContentEntityForm {
       $form_state->setError($element, t('La cantidad debe ser mayor que 0'));
     }
   }
+  
   /**
    * Validación del campo fecha_vencimiento.
    */
@@ -259,9 +259,7 @@ class FacturaForm extends ContentEntityForm {
     // Validar que la fecha de vencimiento sea válida
     if (strtotime($fecha_vencimiento) === false) {
       $form_state->setError($element, t('La fecha de vencimiento no es válida.'));
-    }
-    // Validar que la fecha de vencimiento sea posterior a la fecha de creación
-    elseif (strtotime($fecha_vencimiento) <= strtotime($fecha_creacion)) {
+    } elseif (strtotime($fecha_vencimiento) <= strtotime($fecha_creacion)) {
       $form_state->setError($element, t('La fecha de vencimiento debe ser posterior a la fecha de creación.'));
     }
   }

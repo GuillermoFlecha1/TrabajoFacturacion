@@ -1,7 +1,0 @@
-checkbox_selector:
-  version: 1.x
-  js:
-    js/checkbox_selector.js: {}
-  dependencies:
-    - core/jquery
-    - core/drupal

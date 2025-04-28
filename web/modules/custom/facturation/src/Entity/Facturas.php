@@ -59,11 +59,11 @@ class Facturas extends ContentEntityBase {
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'string',
-        'weight' => 0, // Orden en la vista
+        'weight' => 0, 
       ])
       ->setDisplayOptions('form', [
         'type' => 'number',
-        'weight' => 0, // Orden en el formulario
+        'weight' => 0,
       ])
       ->setDisplayConfigurable('form', FALSE)
       ->setDisplayConfigurable('view', FALSE);
@@ -75,12 +75,12 @@ class Facturas extends ContentEntityBase {
       ->setReadOnly(TRUE)
       ->setDisplayOptions('form', [
         'type' => 'hidden',
-        'weight' => -1, // No se muestra en el formulario
+        'weight' => -1,
       ])
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'string',
-        'weight' => -1, // No se muestra en la vista
+        'weight' => -1,
       ]);
       
     // Fecha de Creación.
@@ -93,11 +93,11 @@ class Facturas extends ContentEntityBase {
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'datetime_default',
-        'weight' => 2, // Orden en la vista
+        'weight' => 2,
       ])
       ->setDisplayOptions('form', [
         'type' => 'datetime',
-        'weight' => 2, // Orden en el formulario
+        'weight' => 2,
       ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
@@ -128,11 +128,11 @@ class Facturas extends ContentEntityBase {
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'datetime_default',
-        'weight' => 3, // Orden en la vista
+        'weight' => 3,
       ])
       ->setDisplayOptions('form', [
         'type' => 'datetime',
-        'weight' => 3, // Orden en el formulario
+        'weight' => 3, 
       ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
@@ -146,11 +146,11 @@ class Facturas extends ContentEntityBase {
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'entity_reference_label',
-        'weight' => 4, // Orden en la vista
+        'weight' => 4, 
       ])
       ->setDisplayOptions('form', [
         'type' => 'entity_reference_autocomplete',
-        'weight' => 4, // Orden en el formulario
+        'weight' => 4,
         'settings' => [
           'match_operator' => 'CONTAINS',
           'size' => 60,
@@ -171,7 +171,7 @@ class Facturas extends ContentEntityBase {
       ->setDisplayOptions('view', [
         'label' => 'above',
         'type' => 'number_decimal',
-        'weight' => 7, // Orden en la vista
+        'weight' => 7, 
       ])
       ->setDisplayConfigurable('view', TRUE);
 

@@ -1,7 +1,6 @@
 <?php
 
 use Drupal\Core\Url;
-
 /**
  * Implements hook_views_data().
  *
@@ -22,7 +21,7 @@ function facturation_views_data() {
 
   // Campo: ID (NumFactura).
   $data['facturas']['id'] = [
-    'title' => t('Número de la Factura'),
+    'title' => t('NumFactura'),
     'help' => t('Número de factura autoincremental.'),
     'field' => [
       'id' => 'numeric',
@@ -126,7 +125,6 @@ function facturation_views_data() {
     ],
     'filter' => [
       'id' => 'facturation_cliente_filter',
-      'exposed_identifier' => 'user_id',
     ],
     'sort' => [
       'id' => 'standard',
@@ -143,16 +141,6 @@ function facturation_views_data() {
     ],
   ];
 
-  // Campo para checkbox de selección múltiple.
-  $data['facturas']['seleccionar'] = [
-    'title' => t('Seleccionar'),
-    'help' => t('Checkbox para seleccionar la factura.'),
-    'field' => [
-      'id' => 'facturation_checkbox_field',
-      'click sortable' => FALSE,
-    ],
-  ];
-
   return $data;
 }
 
@@ -162,49 +150,47 @@ function facturation_views_data() {
  * Modifica los datos antes de renderizar la vista.
  */
 function facturation_views_pre_render(\Drupal\views\ViewExecutable $view) {
-  if ($view->id() == 'facturas') {
-    // Mapeo de estados.
+  if ($view->id() == 'listafacturas') {
+    // Mapeo de estados para representación textual.
     $estado_map = [
       0 => t('Borrador'),
       1 => t('Finalizada'),
       2 => t('Rectificada'),
       3 => t('Rectificativa'),
     ];
-
+    
+    // Recorremos cada resultado de la vista.
     foreach ($view->result as $row) {
-      // Convertir fechas a timestamp.
-      if (isset($row->facturas_fecha_creacion)) {
+      // Verificar y convertir campo fecha_creacion.
+      if (isset($row->facturas_fecha_creacion) && !is_numeric($row->facturas_fecha_creacion)) {
         $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
       }
-      if (isset($row->facturas_fecha_vencimiento)) {
+      // Verificar y convertir campo fecha_vencimiento.
+      if (isset($row->facturas_fecha_vencimiento) && !is_numeric($row->facturas_fecha_vencimiento)) {
         $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
       }
-
-      // Convertir estado a texto.
-      if (isset($row->facturas_estado)) {
+      // Procesa el campo estado si su valor es numérico.
+      if (isset($row->facturas_estado) && is_numeric($row->facturas_estado)) {
         $estado_value = $row->facturas_estado;
         $estado_display = isset($estado_map[$estado_value]) ? $estado_map[$estado_value] : $estado_value;
         $row->facturas_estado = $estado_display;
       }
     }
-
-    // Agregar botón "Agregar Factura".
+    
+    // Añadir el botón "Agregar Factura" si no está ya añadido.
     if (!isset($view->attachment_before)) {
       $view->attachment_before = [];
     }
-    $view->attachment_before['add_button'] = [
-      '#type' => 'link',
-      '#title' => t('Agregar Factura'),
-      '#url' => Url::fromRoute('facturas.add_form'),
-      '#attributes' => [
-        'class' => ['button', 'button--primary'],
-        'style' => 'margin-bottom: 10px; display: inline-block; text-align: center; line-height: 1.9em; padding: 0.5em 1em;',
-      ],
-    ];
-
-    // Inyectar el formulario de acciones en lote.
-    // Usamos el form builder para obtener el render array del formulario.
-    $batch_form = \Drupal::formBuilder()->getForm('Drupal\facturation\Form\FacturaBatchActionForm');
-    $view->attachment_before['batch_actions'] = $batch_form;
+    
+    if (!isset($view->attachment_before['add_button'])) {
+      $view->attachment_before['add_button'] = [
+        '#type' => 'link',
+        '#title' => t('Agregar Factura'),
+        '#url' => \Drupal\Core\Url::fromRoute('facturas.add_form'),
+        '#attributes' => [
+          'class' => ['button', 'button--primary'],
+        ],
+      ];
     }
+  }
 }
