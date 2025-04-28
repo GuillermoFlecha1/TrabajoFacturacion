@@ -59,7 +59,4 @@ class FacturationUserField extends FieldPluginBase implements ContainerFactoryPl
   
     return $usuario->toLink()->toString(); 
   }
-  
-  
-
 }
