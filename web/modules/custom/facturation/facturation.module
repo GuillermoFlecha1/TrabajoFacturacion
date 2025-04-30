@@ -2,239 +2,139 @@
 
 use Drupal\Core\Url;
 use Drupal\views\ViewExecutable;
+use Drupal\views\Plugin\views\query\Sql;
 use Drupal\views\Plugin\views\query\QueryPluginBase;
 
 /**
  * Implements hook_views_data().
- *
- * Exponemos la tabla "facturas" y añadimos tres campos calculados:
- * - total_importe
- * - total_impuesto
- * - tax_percentage
  */
 function facturation_views_data() {
-  $data = [];
-
-  $data['facturas']['table'] = [
-    'group' => t('Facturas'),
-    'base' => [
-      'field' => 'id',
-      'title' => t('Facturas'),
-      'help'  => t('Lista de facturas.'),
+  $data['facturas'] = [
+    'table' => [
+      'group' => t('Facturas'),
+      'base'  => [
+        'field' => 'id',
+        'title' => t('Facturas'),
+        'help'  => t('Lista de facturas.'),
+      ],
     ],
   ];
 
-  // Campo: ID (NumFactura).
-  $data['facturas']['id'] = [
-    'title' => t('NumFactura'),
-    'help' => t('Número de factura autoincremental.'),
-    'field' => [
-      'id' => 'numeric',
+  // Campos estándar.
+  $fields = [
+    'id' => [
+      'title' => t('NumFactura'),
+      'help'  => t('Número de factura autoincremental.'),
+      'field' => ['id' => 'numeric'],
+      'filter'=> ['id' => 'numeric'],
+      'sort'  => ['id' => 'standard'],
     ],
-    'sort' => [
-      'id' => 'standard',
+    'num_pedido' => [
+      'title' => t('Número de Pedido'),
+      'help'  => t('Número de pedido único generado aleatoriamente.'),
+      'field' => ['id' => 'facturation_num_pedido'],
+      'filter'=> ['id' => 'facturation_num_pedido_filter'],
+      'sort'  => ['id' => 'standard'],
     ],
-    'filter' => [
-      'id' => 'numeric',
+    'fecha_creacion' => [
+      'title' => t('Fecha de Creación'),
+      'help'  => t('La fecha en que se creó la factura.'),
+      'field' => ['id' => 'date'],
+      'filter'=> ['id' => 'date'],
+      'sort'  => ['id' => 'date'],
     ],
-  ];
-
-  // Campo: Número de Pedido.
-  $data['facturas']['num_pedido'] = [
-    'title' => t('Número de Pedido'),
-    'help' => t('Número de pedido único generado aleatoriamente.'),
-    'field' => [
-      'id' => 'facturation_num_pedido',
+    'fecha_vencimiento' => [
+      'title' => t('Fecha de Vencimiento'),
+      'help'  => t('La fecha de vencimiento de la factura.'),
+      'field' => ['id' => 'date'],
+      'filter'=> ['id' => 'date'],
+      'sort'  => ['id' => 'date'],
     ],
-    'filter' => [
-      'id' => 'facturation_num_pedido_filter',
+    'total_final' => [
+      'title' => t('Total Final'),
+      'help'  => t('El total final de la factura.'),
+      'field' => ['id' => 'numeric'],
+      'filter'=> ['id' => 'numeric'],
+      'sort'  => ['id' => 'standard'],
     ],
-    'sort' => [
-      'id' => 'standard',
+    'estado' => [
+      'title' => t('Estado'),
+      'help'  => t('El estado de la factura (Borrador, Finalizada, etc.).'),
+      'field' => ['id' => 'standard'],
+      'filter'=> ['id' => 'facturation_estado_filter'],
+      'sort'  => ['id' => 'standard'],
     ],
-  ];
-
-  // Campo: Fecha de Creación.
-  $data['facturas']['fecha_creacion'] = [
-    'title' => t('Fecha de Creación'),
-    'help' => t('La fecha en que se creó la factura.'),
-    'field' => [
-      'id' => 'date',
-    ],
-    'filter' => [
-      'id' => 'date',
-    ],
-    'sort' => [
-      'id' => 'date',
-    ],
-  ];
-
-  // Campo: Fecha de Vencimiento.
-  $data['facturas']['fecha_vencimiento'] = [
-    'title' => t('Fecha de Vencimiento'),
-    'help' => t('La fecha de vencimiento de la factura.'),
-    'field' => [
-      'id' => 'date',
-    ],
-    'filter' => [
-      'id' => 'date',
-    ],
-    'sort' => [
-      'id' => 'date',
-    ],
-  ];
-  // Campo: Total Final.
-  $data['facturas']['total_final'] = [
-    'title' => t('Total Final'),
-    'help' => t('El total final de la factura.'),
-    'field' => [
-      'id' => 'numeric',
-    ],
-    'filter' => [
-      'id' => 'numeric',
-    ],
-    'sort' => [
-      'id' => 'standard',
+    'user_id' => [
+      'title'        => t('Cliente'),
+      'help'         => t('El cliente asociado a la factura.'),
+      'relationship' => [
+        'base'             => 'users_field_data',
+        'base field'       => 'uid',
+        'relationship field'=> 'user_id',
+        'title'            => t('Cliente'),
+        'id'               => 'standard',
+      ],
+      'field'  => ['id' => 'facturation_user_field'],
+      'filter' => ['id' => 'facturation_cliente_filter'],
+      'sort'   => ['id' => 'standard'],
     ],
   ];
 
-  // Campo: Estado.
-  $data['facturas']['estado'] = [
-    'title' => t('Estado'),
-    'help' => t('El estado de la factura (por ejemplo, Borrador, Rectificada, Finalizada, Rectificativa).'),
-    'field' => [
-      'id' => 'standard',
-    ],
-    'filter' => [
-      'id' => 'facturation_estado_filter',
-    ],
-    'sort' => [
-      'id' => 'standard',
-    ],
-  ];
+  foreach ($fields as $name => $info) {
+    $data['facturas'][$name] = $info;
+  }
 
-  // Campo: user_id con relación para mostrar el Cliente.
-  $data['facturas']['user_id'] = [
-    'title' => t('Cliente'),
-    'help' => t('El cliente asociado a la factura.'),
-    'relationship' => [
-      'base' => 'users_field_data',
-      'base field' => 'uid',
-      'relationship field' => 'user_id',
-      'title' => t('Cliente'),
-      'id' => 'standard',
-    ],
-    'field' => [
-      'id' => 'facturation_user_field',
-    ],
-    'filter' => [
-      'id' => 'facturation_cliente_filter',
-    ],
-    'sort' => [
-      'id' => 'standard',
-    ],
-  ];
-
-   // Añadimos un campo personalizado para las acciones
-   $data['facturas']['acciones'] = [
+  // Campo de acciones.
+  $data['facturas']['acciones'] = [
     'title' => t('Acciones'),
-    'help' => t('Proporciona enlaces para realizar acciones sobre la factura.'),
+    'help'  => t('Enlaces para acciones sobre la factura.'),
     'field' => [
-      'id' => 'facturation_actions',
+      'id'             => 'facturation_actions',
       'click sortable' => FALSE,
     ],
   ];
 
-  // ---------------------------------------------------
-  // 2) Campos CALCULADOS (no existen en BD)
-  // ---------------------------------------------------
+  // Campos calculados.
+  foreach (['total_importe', 'total_impuesto', 'tax_percentage'] as $name) {
+    $data['facturas'][$name] = [
+      'title'      => t(ucwords(str_replace('_', ' ', $name))),
+      'help'       => t('Campo calculado «:name».', [':name' => $name]),
+      'field'      => ['id' => 'facturation_calculated_field', 'click sortable' => FALSE],
+      'real field' => 'id',
+    ];
+  }
 
-// Total Importe (sin IVA)
-$data['facturas']['total_importe'] = [
-  'title'      => t('Total Importe'),
-  'help'       => t('Suma de importes de productos sin IVA.'),
-  'field'      => [
-    'id' => 'facturation_calculated_field', // Controlador personalizado
-    'click sortable' => FALSE,
-  ],
-  'real field' => 'id', // Usamos el ID como campo real para evitar errores
-];
-
-// Total Impuesto
-$data['facturas']['total_impuesto'] = [
-  'title'      => t('Total Impuesto'),
-  'help'       => t('Suma de los importes de IVA aplicados.'),
-  'field'      => [
-    'id' => 'facturation_calculated_field', // Controlador personalizado
-    'click sortable' => FALSE,
-  ],
-  'real field' => 'id', // Usamos el ID como campo real para evitar errores
-];
-
-// Porcentaje efectivo de impuesto
-$data['facturas']['tax_percentage'] = [
-  'title'      => t('Porcentaje Impuesto'),
-  'help'       => t('Porcentaje efectivo de IVA sobre el subtotal.'),
-  'field'      => [
-    'id' => 'facturation_calculated_field', // Controlador personalizado
-    'click sortable' => FALSE,
-  ],
-  'real field' => 'id', // Usamos el ID como campo real para evitar errores
-];
   return $data;
 }
 
 /**
  * Implements hook_views_query_alter().
- *
- * Elimina de la cláusula SELECT de SQL los campos calculados
- * que no existen en la base de datos.
- */
-/**
- * Implements hook_views_query_alter().
- *
- * Removes calculated fields from SQL query that don't exist in database.
- */
-/**
- * Implements hook_views_query_alter().
  */
 function facturation_views_query_alter(ViewExecutable $view, QueryPluginBase $query) {
-  if ($view->id() === 'listafacturas' && $query instanceof \Drupal\views\Plugin\views\query\Sql) {
-    // Obtener todas las expresiones SQL (campos) del query
-    if (isset($query->fields)) {
-      foreach ($query->fields as $table_alias => $fields) {
-        foreach ($fields as $field_alias => $field) {
-          // Si el alias del campo contiene uno de nuestros campos calculados
-          if (strpos($field_alias, 'tax_percentage') !== FALSE || 
-              strpos($field_alias, 'total_importe') !== FALSE || 
-              strpos($field_alias, 'total_impuesto') !== FALSE) {
-            // Eliminar completamente este campo de la consulta
-            unset($query->fields[$table_alias][$field_alias]);
-          }
-        }
-        // Si ya no hay campos para esta tabla, eliminar la tabla
-        if (empty($query->fields[$table_alias])) {
-          unset($query->fields[$table_alias]);
-        }
+  if ($view->id() !== 'listafacturas' || !$query instanceof Sql) {
+    return;
+  }
+
+  foreach ($query->fields as $alias => $fields) {
+    foreach ($fields as $field_alias => $field) {
+      if (preg_match('/^(total_importe|total_impuesto|tax_percentage)$/', $field_alias)) {
+        unset($query->fields[$alias][$field_alias]);
       }
+    }
+    if (empty($query->fields[$alias])) {
+      unset($query->fields[$alias]);
     }
   }
 }
+
 /**
  * Implements hook_views_pre_render().
- *
- * Para la vista 'listafacturas', calcula e inyecta en cada fila:
- * - total_importe
- * - total_impuesto
- * - tax_percentage
- * Además de ajustes de fechas, estado y botón "Agregar Factura".
  */
 function facturation_views_pre_render(ViewExecutable $view) {
   if ($view->id() !== 'listafacturas') {
     return;
   }
 
-  // Mapeo de estados
   $estado_map = [
     0 => t('Borrador'),
     1 => t('Finalizada'),
@@ -242,61 +142,51 @@ function facturation_views_pre_render(ViewExecutable $view) {
     3 => t('Rectificativa'),
   ];
 
+  $storage = \Drupal::entityTypeManager()->getStorage('factura_producto');
+
   foreach ($view->result as $row) {
-    // Ajustes previos: fecha y estado
-    if (!empty($row->facturas_fecha_creacion) && !is_numeric($row->facturas_fecha_creacion)) {
-      $row->facturas_fecha_creacion = strtotime($row->facturas_fecha_creacion);
-    }
-    if (!empty($row->facturas_fecha_vencimiento) && !is_numeric($row->facturas_fecha_vencimiento)) {
-      $row->facturas_fecha_vencimiento = strtotime($row->facturas_fecha_vencimiento);
-    }
-    if (isset($row->facturas_estado) && is_numeric($row->facturas_estado)) {
-      $val = $row->facturas_estado;
-      $row->facturas_estado = $estado_map[$val] ?? $row->facturas_estado;
+    // Formatear fechas.
+    foreach (['fecha_creacion', 'fecha_vencimiento'] as $date_field) {
+      $prop = "facturas_{$date_field}";
+      if (!empty($row->$prop) && !is_numeric($row->$prop)) {
+        $row->$prop = strtotime($row->$prop);
+      }
     }
 
-    // Cálculo de importes e impuesto
-    $factura_id     = $row->facturas_id;
-    $total_importe  = 0;
-    $total_impuesto = 0;
+    // Mapear estado.
+    if (is_numeric($row->facturas_estado)) {
+      $row->facturas_estado = $estado_map[$row->facturas_estado] ?? $row->facturas_estado;
+    }
 
-    $productos = \Drupal::entityTypeManager()
-      ->getStorage('factura_producto')
-      ->loadByProperties(['factura_id' => $factura_id]);
+    // Calcular totales.
+    $total_importe = $total_impuesto = 0;
+    $productos = $storage->loadByProperties(['factura_id' => $row->facturas_id]);
 
     foreach ($productos as $fp) {
-      $cantidad = $fp->get('cantidad')->value;
-      $producto = $fp->get('producto_id')->entity;
-      $precio   = $producto->get('precio')->value;
+      $cantidad    = $fp->cantidad->value;
+      $producto    = $fp->producto_id->entity;
+      $precio      = $producto->precio->value;
+      $impuesto_pct = ($producto->hasField('impuesto_id') && ($imp = $producto->impuesto_id->entity))
+        ? $imp->valor->value
+        : 0;
 
-      // % de impuesto
-      $impuesto_pct = 0;
-      if ($producto->hasField('impuesto_id') && ($imp_ent = $producto->get('impuesto_id')->entity)) {
-        $impuesto_pct = $imp_ent->get('valor')->value;
-      }
-
-      $importe        = $precio * $cantidad;
-      $impuesto_valor = ($importe * $impuesto_pct) / 100;
-
+      $importe          = $precio * $cantidad;
       $total_importe  += $importe;
-      $total_impuesto += $impuesto_valor;
+      $total_impuesto += ($importe * $impuesto_pct) / 100;
     }
 
-    // Inyectar campos calculados en el row
-    $row->facturas_total_importe   = $total_importe;
-    $row->facturas_total_impuesto  = $total_impuesto;
-    $row->facturas_tax_percentage  = $total_importe
-      ? (($total_impuesto * 100) / $total_importe)
-      : 0;
+    $row->facturas_total_importe  = $total_importe;
+    $row->facturas_total_impuesto = $total_impuesto;
+    $row->facturas_tax_percentage = $total_importe ? ($total_impuesto * 100 / $total_importe) : 0;
   }
 
-  // Botón "Agregar Factura"
-  if (!isset($view->attachment_before['add_button'])) {
-    $view->attachment_before['add_button'] = [
+  // Agregar botón "Agregar Factura".
+  $view->attachment_before += [
+    'add_button' => [
       '#type'       => 'link',
       '#title'      => t('Agregar Factura'),
       '#url'        => Url::fromRoute('facturas.add_form'),
       '#attributes' => ['class' => ['button', 'button--primary']],
-    ];
-  }
+    ],
+  ];
 }

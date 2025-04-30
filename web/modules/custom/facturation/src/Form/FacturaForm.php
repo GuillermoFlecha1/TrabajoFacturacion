@@ -13,214 +13,129 @@ class FacturaForm extends ContentEntityForm {
 
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
-
-    $num_pedido_actual = $this->entity->get('num_pedido')->value ?? null;
-
-    if (empty($num_pedido_actual) || $num_pedido_actual === null) {
-        $this->entity->set('num_pedido', null);
-    }
-
-
-
-   // Prepara el valor por defecto (si es edición).
-   $default_value_User = '';
-   if (!$this->entity->isNew() && !$this->entity->get('user_id')->isEmpty()) {
-     // Para un campo de referencia de valor único, obtenemos el primer item.
-     $default_value_User = $this->entity->get('user_id')->first()->getValue()['target_id'];
-   }
-   // --- Usuario (user_id) ---
-   if (isset($form['user_id']['widget'][0]['target_id'])) {
-     $form['user_id']['widget'][0]['target_id'] = [
-       '#type' => 'select',
-       '#title' => $this->t('Usuario'),
-       '#options' => $this->getUserOptions(),
-       '#default_value' => $default_value_User,
-       '#required' => TRUE,
-     ];
-   } else {
-     $form['user_id'] = [
-       '#type' => 'select',
-       '#title' => $this->t('Usuario'),
-       '#options' => $this->getUserOptions(),
-       '#default_value' => $default_value_User,
-       '#required' => TRUE,
-     ];
-   }
-
-   $factura_id = $this->entity->id();
-    $productos = $form_state->get('productos') ?? [];
-    
-    if ($factura_id && empty($productos)) {
-      // Cargar todas las entidades factura_producto relacionadas con la factura.
-      $factura_productos = \Drupal::entityTypeManager()
-        ->getStorage('factura_producto')
-        ->loadByProperties(['factura_id' => $factura_id]);
-    
-      foreach ($factura_productos as $factura_producto) {
-        $producto_id = $factura_producto->get('producto_id')->target_id ?? NULL;
-        $cantidad = $factura_producto->get('cantidad')->value ?? 0;
-    
-        $producto = \Drupal::entityTypeManager()->getStorage('producto')->load($producto_id);
-    
-        if ($producto) {
-          $productos[$producto_id] = [
-            'producto_id' => $producto_id,
-            'producto' => $producto->get('nombre')->value ?? 'Producto desconocido',
-            'cantidad' => $cantidad,
-          ];
-        }
-      }
-      $form_state->set('productos', $productos);
-    }
-    
-    $form['producto_cantidad_container'] = [
-      '#type' => 'container',
-      '#attributes' => ['style' => 'display: flex; align-items: center; gap: 10px;'],
-  ];
-  
-  // Select de productos filtrados
-  $form['producto_cantidad_container']['producto_id'] = [
-    '#type' => 'entity_autocomplete',
-    '#title' => $this->t('Producto'),
-    '#target_type' => 'producto', 
-    '#selection_handler' => 'default',
-    '#attributes' => [
-      'placeholder' => $this->t('Escribe para buscar...'),
-    ],
-  ];
-  
-  $form['producto_cantidad_container']['cantidad'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Cantidad'),
-      '#min' => 1,
-      '#default_value' => 1,
-  ];
-  
-  $form['producto_cantidad_container']['agregar'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Añadir'),
-      '#submit' => ['::agregarProducto'],
-      '#ajax' => [
-          'callback' => '::ajaxActualizarTabla',
-          'wrapper' => 'productos-agregados-wrapper',
-          'event' => 'click',
-          'effect' => 'fade',
-      ],
-      '#attributes' => ['style' => 'margin-top: 40px;'],
-  ];
-
-    // Contenedor para la tabla de productos agregados
-    $form['productos_agregados_wrapper'] = [
-      '#type' => 'container',
-      '#attributes' => ['id' => 'productos-agregados-wrapper'],
-  ];
-
-  // Crear la tabla de productos agregados
-  $form['productos_agregados_wrapper']['productos_agregados'] = [
-      '#type' => 'table',
-      '#header' => [
-          $this->t('Producto'),
-          $this->t('Cantidad'),
-          $this->t('Precio (€)'),
-          $this->t('Impuesto (%)'),
-          $this->t('Importe (€)'),
-          $this->t('Acciones'),
-      ],
-      '#empty' => $this->t('No hay productos agregados.'),
-      '#tree' => TRUE,
-  ];
-
-  $total_importe = 0;
-  $total_impuesto = 0;
-  $total_final=0;
-
-  foreach ($productos as $index => $producto) {
-      $precio = $this->getProductoPrecio($producto['producto_id']);
-      $impuesto = $this->getProductoImpuesto($producto['producto_id']);
-      $importe = $precio * ($form_state->getValue(['productos_agregados', $index, 'cantidad']) ?? $producto['cantidad']);
-      $impuesto_total_producto = ($importe * $impuesto) / 100;
-      $total_importe += $importe;
-      $total_impuesto += $impuesto_total_producto;
-      $total_final = $total_importe + $total_impuesto;
-
-      $form['productos_agregados_wrapper']['productos_agregados'][$index]['producto'] = [
-        '#markup' => '<strong>' . $this->getProductoOptions()[$producto['producto_id']] . '</strong>',
-        '#allowed_tags' => ['strong'],
-        '#wrapper_attributes' => [
-        'style' => 'width: 130px; white-space: nowrap;',
-        ], 
-      ];
-
-      $form['productos_agregados_wrapper']['productos_agregados'][$index]['producto_id'] = [
-        '#type' => 'hidden',
-        '#value' => $producto['producto_id'],
-        '#wrapper_attributes' => ['style' => 'display: none;'],
-      ];
-
-      $form['productos_agregados_wrapper']['productos_agregados'][$index]['cantidad'] = [
-          '#type' => 'number',
-          '#default_value' => $producto['cantidad'],
-          '#min' => 1,
-          '#ajax' => [
-              'callback' => '::ajaxActualizarTabla',
-              'event' => 'change',
-              'wrapper' => 'productos-agregados-wrapper',
-          ],
-      ];
-
-      $form['productos_agregados_wrapper']['productos_agregados'][$index]['precio'] = [
-          '#type' => 'textfield',
-          '#default_value' => number_format($precio, 2),
-          '#disabled' => TRUE,
-      ];
-
-      $form['productos_agregados_wrapper']['productos_agregados'][$index]['impuesto'] = [
-          '#type' => 'textfield',
-          '#default_value' => number_format($impuesto, 2) . '%',
-          '#disabled' => TRUE,
-      ];
-
-      $form['productos_agregados_wrapper']['productos_agregados'][$index]['importe'] = [
-          '#type' => 'textfield',
-          '#default_value' => number_format($importe, 2),
-          '#disabled' => TRUE,
-      ];
-
-      $form['productos_agregados_wrapper']['productos_agregados'][$index]['acciones'] = [
-          '#type' => 'submit',
-          '#value' => $this->t('Eliminar'),
-          '#submit' => ['::eliminarProducto'],
-          '#limit_validation_errors' => [],
-          '#name' => 'eliminar_producto_' . $producto['producto_id'],
-      ];
-  }
-
-  // Agregar los totales al final de la tabla
-  $form['productos_agregados_wrapper']['totales'] = [
-      '#type' => 'markup',
-      '#markup' => '<div><b>Total Importe:</b> ' . number_format($total_importe, 2) . '€<br>' .
-                   '<b>Total Impuesto:</b> ' . number_format($total_impuesto, 2) . '€<br>' .
-                   '<b>Total Final:</b> ' . number_format($total_final, 2) . '€</div>',
-  ];
-
-    // --- Fecha de vencimiento ---
-    if (isset($form['fecha_vencimiento'])) {
-      $form['fecha_vencimiento']['#element_validate'][] = [$this, 'validateFechaVencimiento'];
-    }
+    $this->initNumPedido();
+    $this->buildUserSelector($form, $form_state);
+    $this->loadProductos($form_state);
+    $this->buildProductoContainer($form, $form_state);
+    $this->buildProductosTable($form, $form_state, $form);
+    $this->attachValidations($form);
     $form['generar_pdf'] = [
       '#type' => 'submit',
       '#value' => $this->t('Finalizar Factura'),
       '#submit' => ['::generarFacturaPDF'],
-      '#attributes' => ['style' => 'margin-top: 20px;'],
+      '#attributes' => ['class' => ['button', 'button--primary'], 'style' => 'margin-top:20px'],
     ];
     return $form;
   }
 
-  /**
-   * Callback AJAX para actualizar la tabla de productos.
-   */
+  protected function initNumPedido(): void {
+    if (empty($this->entity->get('num_pedido')->value)) {
+      $this->entity->set('num_pedido', null);
+    }
+  }
+
+  protected function buildUserSelector(array &$form, FormStateInterface $form_state): void {
+    $value = $this->entity->isNew() ? null : $this->entity->get('user_id')->entity->id();
+    $select = [
+      '#type' => 'select',
+      '#title' => $this->t('Usuario'),
+      '#options' => $this->getUserOptions(),
+      '#default_value' => $value,
+      '#required' => TRUE,
+    ];
+    if (isset($form['user_id']['widget'][0]['target_id'])) {
+      $form['user_id']['widget'][0]['target_id'] = $select;
+    }
+    else {
+      $form['user_id'] = $select;
+    }
+  }
+
+  protected function loadProductos(FormStateInterface $form_state): void {
+    if ($id = $this->entity->id() && !$form_state->get('productos')) {
+      $items = \Drupal::entityTypeManager()
+        ->getStorage('factura_producto')
+        ->loadByProperties(['factura_id' => $this->entity->id()]);
+      $list = [];
+      foreach ($items as $item) {
+        $pid = $item->get('producto_id')->target_id;
+        if ($ent = \Drupal::entityTypeManager()->getStorage('producto')->load($pid)) {
+          $list[$pid] = [
+            'producto_id' => $pid,
+            'producto' => $ent->get('nombre')->value,
+            'cantidad' => $item->get('cantidad')->value,
+          ];
+        }
+      }
+      $form_state->set('productos', $list);
+    }
+  }
+
+  protected function buildProductoContainer(array &$form, FormStateInterface $form_state): void {
+    $form['producto_cantidad'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['flex', 'gap-4', 'items-center']],
+      'producto_id' => [
+        '#type' => 'entity_autocomplete',
+        '#title' => $this->t('Producto'),
+        '#target_type' => 'producto',
+        '#selection_handler' => 'default',
+        '#attributes' => ['placeholder' => $this->t('Escribe para buscar...')],
+      ],
+      'cantidad' => [
+        '#type' => 'number',
+        '#title' => $this->t('Cantidad'),
+        '#min' => 1,
+        '#default_value' => 1,
+      ],
+      'agregar' => [
+        '#type' => 'submit',
+        '#value' => $this->t('Añadir'),
+        '#submit' => ['::agregarProducto'],
+        '#ajax' => ['callback' => '::ajaxActualizarTabla', 'wrapper' => 'productos-wrapper'],
+      ],
+    ];
+  }
+
+  protected function buildProductosTable(array &$form, FormStateInterface $form_state): void {
+    $productos = $form_state->get('productos') ?: [];
+    $form['productos_wrapper'] = ['#type' => 'container', '#attributes' => ['id' => 'productos-wrapper']];
+    $form['productos_wrapper']['tabla'] = [
+      '#type' => 'table',
+      '#header' => [$this->t('Producto'), $this->t('Cantidad'), $this->t('Precio (€)'), $this->t('Impuesto (%)'), $this->t('Importe (€)'), $this->t('Acciones')],
+      '#empty' => $this->t('No hay productos agregados.'),
+      '#tree' => TRUE,
+    ];
+
+    $totales = ['importe' => 0, 'impuesto' => 0];
+    foreach ($productos as $key => $prod) {
+      $precio = $this->getProductoPrecio($prod['producto_id']);
+      $impuesto = $this->getProductoImpuesto($prod['producto_id']);
+      $cantidad = $form_state->getValue(['productos_wrapper', 'tabla', $key, 'cantidad']) ?? $prod['cantidad'];
+      $importe = $precio * $cantidad;
+      $totales['importe'] += $importe;
+      $totales['impuesto'] += ($importe * $impuesto) / 100;
+
+      $row =& $form['productos_wrapper']['tabla'][$key];
+      $row['producto'] = ['#markup' => '<strong>' . $prod['producto'] . '</strong>'];
+      $row['cantidad'] = ['#type' => 'number', '#default_value' => $cantidad, '#ajax' => ['callback' => '::ajaxActualizarTabla', 'wrapper' => 'productos-wrapper']];
+      $row['precio'] = ['#markup' => number_format($precio, 2)];
+      $row['impuesto'] = ['#markup' => number_format($impuesto, 2) . '%'];
+      $row['importe'] = ['#markup' => number_format($importe, 2)];
+      $row['acciones'] = ['#type' => 'submit', '#value' => $this->t('Eliminar'), '#submit' => ['::eliminarProducto'], '#limit_validation_errors' => [], '#name' => 'eliminar_' . $prod['producto_id']];
+    }
+
+    $total_final = $totales['importe'] + $totales['impuesto'];
+    $form['productos_wrapper']['totales'] = ['#markup' => "<div><b>Total Importe:</b> " . number_format($totales['importe'],2) . "€<br><b>Total Impuesto:</b> " . number_format($totales['impuesto'],2) . "€<br><b>Total Final:</b> " . number_format($total_final,2) . "€</div>"];
+  }
+
+  protected function attachValidations(array &$form): void {
+    $form['fecha_vencimiento']['#element_validate'][] = [$this, 'validateFechaVencimiento'];
+    // agregar validator cantidad si es necesario
+  }
+
   public function ajaxActualizarTabla(array &$form, FormStateInterface $form_state) {
-    return $form['productos_agregados_wrapper'];
+    return $form['productos_wrapper'];
   }
 
   /**
